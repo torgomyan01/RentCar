@@ -1,6 +1,5 @@
 import './globals.scss';
 import '../icons/icons.css';
-import '@/components/ui/_ui-components.scss';
 
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -35,14 +34,14 @@ export default async function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning={true} className="light">
       <body className="text-foreground bg-background">
-        <div className="overflow-hidden">
+        <main className="main">
           <SesProviders session={session}>
             <NextTopLoader />
             <Providers>
               <UiProviders>{children}</UiProviders>
             </Providers>
           </SesProviders>
-        </div>
+        </main>
       </body>
     </html>
   );
