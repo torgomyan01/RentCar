@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Script from 'next/script';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 
 declare global {
   interface Window {
@@ -12,7 +11,6 @@ declare global {
 }
 
 function ContactBlock() {
-  const router = useRouter();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInitialized = useRef(false);
 
@@ -64,24 +62,9 @@ function ContactBlock() {
       />
       <div className="contact-wrap">
         <div className="container">
-          <div className="breadcrumbs-wrap">
-            <ul className="breadcrumbs">
-              <li>
-                <Link href="/">Главная</Link>
-              </li>
-              <li>
-                <span>Контакты</span>
-              </li>
-            </ul>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="back-style"
-            >
-              <img src="/img/back-icon.svg" alt="" />
-              <span>Назад</span>
-            </button>
-          </div>
+          <Breadcrumbs
+            items={[{ label: 'Главная', href: '/' }, { label: 'Контакты' }]}
+          />
           <h1>Контакты</h1>
           <div className="map-wrap">
             <div className="map-info">

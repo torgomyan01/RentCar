@@ -14,7 +14,7 @@ interface HeaderProps {
 }
 
 const menuItems = [
-  { label: 'Каталог автомобилей', href: '#' },
+  { label: 'Каталог автомобилей', href: SITE_URL.CATALOG },
   { label: 'Условия аренды', href: '#' },
   { label: 'Контакты', href: SITE_URL.CONTACT },
 ];

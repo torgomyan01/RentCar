@@ -14,6 +14,7 @@ function MainTemplate({
   return (
     <main className={clsx('main', minHeight && 'bg-grey')}>
       <Header minHeight={minHeight} headerAnimation={headerAnimation} />
+
       {children}
       <Footer minHeight={minHeight} />
     </main>
