@@ -35,16 +35,14 @@ export default async function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning={true} className="light">
       <body className="text-foreground bg-background">
-        <main className="main">
-          <SesProviders session={session}>
-            <NextTopLoader />
-            <Providers>
-              <UiProviders>
-                <RentModalProvider>{children}</RentModalProvider>
-              </UiProviders>
-            </Providers>
-          </SesProviders>
-        </main>
+        <SesProviders session={session}>
+          <NextTopLoader />
+          <Providers>
+            <UiProviders>
+              <RentModalProvider>{children}</RentModalProvider>
+            </UiProviders>
+          </Providers>
+        </SesProviders>
       </body>
     </html>
   );

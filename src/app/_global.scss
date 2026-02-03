@@ -246,8 +246,6 @@
   box-shadow: $args;
 }
 
-$red: #ee132a;
-
 // Mixin - END
 
 ::-webkit-scrollbar {
@@ -403,16 +401,16 @@ a {
   color: white;
   font-weight: 500;
   font-size: 16px;
-  background: $red;
+  background: #ee132a;
   text-align: center;
-  border: 1px solid $red;
+  border: 1px solid #ee132a;
   @media (max-width: 767px) {
     font-size: 16px;
     padding: 12px 24px;
   }
   &:hover {
     background: white;
-    color: $red;
+    color: #ee132a;
   }
 }
 
@@ -523,9 +521,9 @@ a {
       font-size: 14px;
       line-height: 140%;
       a {
-        color: $red;
+        color: #ee132a;
         display: inline;
-        border-bottom: 1px solid $red;
+        border-bottom: 1px solid #ee132a;
         &:hover {
           border-color: transparent;
         }
@@ -574,8 +572,8 @@ a {
       }
     }
     .footer-link {
-      border-bottom: 1px solid $red;
-      color: $red;
+      border-bottom: 1px solid #ee132a;
+      color: #ee132a;
       font-size: 16px;
       font-weight: 300;
       @media (max-width: 1024px) {
@@ -657,8 +655,8 @@ a {
     overflow: hidden;
   }
   .read {
-    color: $red;
-    border-bottom: 1px solid $red;
+    color: #ee132a;
+    border-bottom: 1px solid #ee132a;
     margin-top: auto;
     &:hover {
       border-color: transparent;
@@ -989,7 +987,11 @@ a {
             color: white;
             transition: color 0.3s ease;
             &:hover {
-              color: $red;
+              color: #ee132a;
+            }
+            &.active {
+              color: #ee132a;
+              font-weight: 500;
             }
           }
         }
@@ -1029,7 +1031,7 @@ a {
           border: 1px solid rgba(255, 255, 255, 0.2);
           transition: all 0.3s ease;
           &:hover {
-            border-color: $red;
+            border-color: #ee132a;
             transform: scale(1.1);
           }
           img {
@@ -1059,7 +1061,7 @@ a {
           border-radius: 50%;
           border: 1px solid rgba(255, 255, 255, 0.2);
           &:hover {
-            border-color: $red;
+            border-color: #ee132a;
           }
           img {
             margin: auto;
@@ -1087,7 +1089,7 @@ a {
     @include flex;
     width: 28px;
     height: 28px;
-    background: $red;
+    background: #ee132a;
     border-radius: 50%;
     margin-left: 25px;
   }
@@ -1205,8 +1207,8 @@ a {
       }
     }
     &:hover {
-      background: $red;
-      border-color: $red;
+      background: #ee132a;
+      border-color: #ee132a;
       svg {
         fill: white;
       }
@@ -1346,7 +1348,7 @@ a {
     min-width: 34px;
     height: 34px;
     display: flex;
-    background: $red;
+    background: #ee132a;
     border-radius: 50%;
     padding-left: 2px;
     img {
@@ -1373,7 +1375,7 @@ a {
     .num {
       display: block;
       margin-bottom: 30px;
-      color: $red;
+      color: #ee132a;
       font-size: 34px;
       font-weight: 300;
       transition: 0.3s;
@@ -1395,7 +1397,7 @@ a {
       transition: 0.3s;
     }
     &:hover {
-      background: $red;
+      background: #ee132a;
       border-color: white;
       .num,
       h4,
@@ -1439,7 +1441,7 @@ a {
         min-width: 50px;
         margin-right: 20px;
         border-radius: 50%;
-        background: $red;
+        background: #ee132a;
         display: flex;
         img {
           margin: auto;
@@ -1640,8 +1642,8 @@ a {
           a {
             font-size: 14px;
             font-weight: 300;
-            color: $red;
-            border-bottom: 1px solid $red;
+            color: #ee132a;
+            border-bottom: 1px solid #ee132a;
             &:hover {
               border-color: transparent;
             }
@@ -1811,7 +1813,7 @@ a {
   }
 
   .calendar-range {
-    background: $red;
+    background: #ee132a;
     color: #fff;
     padding: 12px;
     border-radius: 12px;
@@ -1917,7 +1919,7 @@ a {
     &:hover {
       transform: scale(1.05);
       background: rgba(238, 19, 42, 0.08);
-      color: $red;
+      color: #ee132a;
       font-weight: 500;
 
       &::before {
@@ -1942,7 +1944,7 @@ a {
   }
 
   .day.active {
-    background: $red;
+    background: #ee132a;
     color: #fff;
     font-weight: 500;
     animation: dayPulse 0.3s ease-out;
@@ -2067,7 +2069,7 @@ a {
     }
 
     &:focus {
-      border-color: $red;
+      border-color: #ee132a;
       box-shadow: 0 0 0 2px rgba(238, 19, 42, 0.08);
       transform: translateY(-1px);
     }
@@ -2232,12 +2234,12 @@ a {
 
     &:hover {
       background: rgba(238, 19, 42, 0.1);
-      color: $red;
+      color: #ee132a;
       transform: scale(1.05);
     }
 
     &.active {
-      background: $red;
+      background: #ee132a;
       color: #fff;
       font-weight: 600;
       box-shadow: 0 2px 8px rgba(238, 19, 42, 0.3);
@@ -2282,7 +2284,7 @@ a {
   }
 
   .paid {
-    color: $red;
+    color: #ee132a;
   }
 
   .rent-actions {
@@ -2310,7 +2312,7 @@ a {
   }
 
   .btn-primary {
-    background: $red;
+    background: #ee132a;
     color: #fff;
     border: none;
   }
@@ -2412,8 +2414,8 @@ a {
         a {
           font-size: 10px;
           font-weight: 300;
-          border-bottom: 0.3px solid $red;
-          color: $red;
+          border-bottom: 0.3px solid #ee132a;
+          color: #ee132a;
           display: inline;
           &:hover {
             border-color: transparent;

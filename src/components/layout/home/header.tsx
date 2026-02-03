@@ -3,9 +3,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useRentModal } from '@/contexts/rent-modal-context';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import clsx from 'clsx';
+import { SITE_URL } from '@/utils/consts';
 
-function Header() {
+interface HeaderProps {
+  minHeight?: boolean;
+  headerAnimation?: boolean;
+}
+
+const menuItems = [
+  { label: 'Каталог автомобилей', href: '#' },
+  { label: 'Условия аренды', href: '#' },
+  { label: 'Контакты', href: SITE_URL.CONTACT },
+];
+
+function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
   const { openModal } = useRentModal();
+  const pathname = usePathname();
   const [startDate, setStartDate] = useState<Date | null>(
     new Date(2025, 10, 28) // November 28, 2025
   );
@@ -75,133 +91,171 @@ function Header() {
     });
   };
 
-  const headerVariants = {
-    hidden: { opacity: 0, y: -30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+  // Empty variants when animation is disabled
+  const emptyVariants = {
+    hidden: {},
+    visible: {},
   };
 
-  const logoVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.5, delay: 0.1 },
-    },
-  };
+  const headerVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, y: -30 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+      }
+    : emptyVariants;
 
-  const menuItemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.4, delay: 0.1 + i * 0.1 },
-    }),
-  };
+  const logoVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: {
+          opacity: 1,
+          scale: 1,
+          transition: { duration: 0.5, delay: 0.1 },
+        },
+      }
+    : emptyVariants;
 
-  const socialIconVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: (i: number) => ({
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.4, delay: 0.4 + i * 0.1 },
-    }),
-  };
+  const menuItemVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, y: 20 },
+        visible: (i: number) => ({
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.4, delay: 0.1 + i * 0.1 },
+        }),
+      }
+    : emptyVariants;
 
-  const phoneVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.5, delay: 0.4 },
-    },
-  };
+  const socialIconVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: (i: number) => ({
+          opacity: 1,
+          scale: 1,
+          transition: { duration: 0.4, delay: 0.4 + i * 0.1 },
+        }),
+      }
+    : emptyVariants;
 
-  const dropMenuVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.5, delay: 0.5 },
-    },
-  };
+  const phoneVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, x: -20 },
+        visible: {
+          opacity: 1,
+          x: 0,
+          transition: { duration: 0.5, delay: 0.4 },
+        },
+      }
+    : emptyVariants;
 
-  const bannerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.8, delay: 0.2 },
-    },
-  };
+  const dropMenuVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: {
+          opacity: 1,
+          scale: 1,
+          transition: { duration: 0.5, delay: 0.5 },
+        },
+      }
+    : emptyVariants;
 
-  const personsVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.6, delay: 0.4 },
-    },
-  };
+  const bannerVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.8, delay: 0.2 },
+        },
+      }
+    : emptyVariants;
 
-  const titleVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.7, delay: 0.5 },
-    },
-  };
+  const personsVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, x: -20 },
+        visible: {
+          opacity: 1,
+          x: 0,
+          transition: { duration: 0.6, delay: 0.4 },
+        },
+      }
+    : emptyVariants;
 
-  const subtitleVariants = {
-    hidden: { opacity: 0, x: 20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.6, delay: 0.7 },
-    },
-  };
+  const titleVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.7, delay: 0.5 },
+        },
+      }
+    : emptyVariants;
 
-  const formVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, delay: 0.8 },
-    },
-  };
+  const subtitleVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, x: 20 },
+        visible: {
+          opacity: 1,
+          x: 0,
+          transition: { duration: 0.6, delay: 0.7 },
+        },
+      }
+    : emptyVariants;
 
-  const inputWrapVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, delay: 0.1 + i * 0.1 },
-    }),
-  };
+  const formVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.6, delay: 0.8 },
+        },
+      }
+    : emptyVariants;
 
-  const buttonVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.5, delay: 0.4 },
-    },
-  };
+  const inputWrapVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, y: 20 },
+        visible: (i: number) => ({
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.5, delay: 0.1 + i * 0.1 },
+        }),
+      }
+    : emptyVariants;
+
+  const buttonVariants = headerAnimation
+    ? {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: {
+          opacity: 1,
+          scale: 1,
+          transition: { duration: 0.5, delay: 0.4 },
+        },
+      }
+    : emptyVariants;
 
   return (
     <>
       <motion.header
-        className="header"
-        initial="hidden"
-        animate="visible"
-        variants={headerVariants}
+        className={clsx('header', minHeight && 'header-bg')}
+        {...(headerAnimation && {
+          initial: 'hidden',
+          animate: 'visible',
+          variants: headerVariants,
+        })}
       >
         <div className="container">
           <div className="header-info">
             <motion.a
-              href="index.html"
+              href={SITE_URL.HOME}
               className="logo"
               variants={logoVariants}
+              {...(headerAnimation && {
+                initial: 'hidden',
+                animate: 'visible',
+              })}
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 300 }}
             >
@@ -209,18 +263,37 @@ function Header() {
             </motion.a>
             <div className="menu-wrap">
               <ul className="main-menu">
-                {['Каталог автомобилей', 'Условия аренды', 'Контакты'].map(
-                  (item, index) => (
+                {menuItems.map((item, index) => {
+                  const isActive = pathname === item.href;
+                  return (
                     <motion.li
-                      key={item}
+                      key={item.label}
                       custom={index}
                       variants={menuItemVariants}
+                      {...(headerAnimation && {
+                        initial: 'hidden',
+                        animate: 'visible',
+                      })}
                       whileHover={{ scale: 1.05 }}
                     >
-                      <a href="#">{item}</a>
+                      {item.href === '#' ? (
+                        <a
+                          href={item.href}
+                          className={isActive ? 'active' : ''}
+                        >
+                          {item.label}
+                        </a>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className={isActive ? 'active' : ''}
+                        >
+                          {item.label}
+                        </Link>
+                      )}
                     </motion.li>
-                  )
-                )}
+                  );
+                })}
               </ul>
               <div className="soc-icons">
                 {[0, 1, 2].map((index) => (
@@ -229,6 +302,10 @@ function Header() {
                     href="#"
                     custom={index}
                     variants={socialIconVariants}
+                    {...(headerAnimation && {
+                      initial: 'hidden',
+                      animate: 'visible',
+                    })}
                     whileHover={{ scale: 1.1, borderColor: '#ee132a' }}
                     className={index === 2 ? 'hide' : ''}
                   >
@@ -236,7 +313,14 @@ function Header() {
                   </motion.a>
                 ))}
               </div>
-              <motion.div className="phone-wrap" variants={phoneVariants}>
+              <motion.div
+                className="phone-wrap"
+                variants={phoneVariants}
+                {...(headerAnimation && {
+                  initial: 'hidden',
+                  animate: 'visible',
+                })}
+              >
                 <a href="tel:+79005001010" className="phone">
                   +7 (900) 500-10-10
                 </a>
@@ -246,6 +330,10 @@ function Header() {
             <motion.div
               className="soc-icons-mobile"
               variants={dropMenuVariants}
+              {...(headerAnimation && {
+                initial: 'hidden',
+                animate: 'visible',
+              })}
             >
               <a href="#">
                 <img src="/img/soc-icon1.svg" alt="" />
@@ -257,7 +345,14 @@ function Header() {
                 <img src="/img/soc-icon3.svg" alt="" />
               </a>
             </motion.div>
-            <motion.div className="drop-menu" variants={dropMenuVariants}>
+            <motion.div
+              className="drop-menu"
+              variants={dropMenuVariants}
+              {...(headerAnimation && {
+                initial: 'hidden',
+                animate: 'visible',
+              })}
+            >
               <span className="line"></span>
               <span className="line"></span>
               <span className="line"></span>
@@ -266,105 +361,140 @@ function Header() {
         </div>
       </motion.header>
 
-      <motion.div
-        className="banner"
-        initial="hidden"
-        animate="visible"
-        variants={bannerVariants}
-      >
-        <div className="container">
-          <div className="banner-info">
-            <motion.div
-              className="persons-wrap cursor-default"
-              variants={personsVariants}
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: 'spring', stiffness: 300 }}
-            >
-              <motion.img
-                src="/img/persons.png"
-                alt=""
-                whileHover={{ scale: 1.05 }}
+      {!minHeight && (
+        <motion.div
+          className="banner"
+          {...(headerAnimation && {
+            initial: 'hidden',
+            animate: 'visible',
+            variants: bannerVariants,
+          })}
+        >
+          <div className="container">
+            <div className="banner-info">
+              <motion.div
+                className="persons-wrap cursor-default"
+                variants={personsVariants}
+                {...(headerAnimation && {
+                  initial: 'hidden',
+                  animate: 'visible',
+                })}
+                whileHover={{ scale: 1.02 }}
                 transition={{ type: 'spring', stiffness: 300 }}
-                className="h-[38px] relative"
-              />
-              <div className="texts" ref={countRef}>
-                <b className="min-w-[80px]">
-                  {formatNumber(count)} {count >= 10000 && '+'}
-                </b>
-                <span>Довольных клиентов</span>
-              </div>
-            </motion.div>
-            <motion.h1 variants={titleVariants}>
-              Долгосрочная аренда автомобилей
-              <motion.p variants={subtitleVariants}>
-                Подберем лучший вариант автомобиля от класса «эконом» до «бизнес
-                премиум»
-              </motion.p>
-            </motion.h1>
-            <motion.form className="banner-form" variants={formVariants}>
-              {[
-                {
-                  label: '* Доступен с',
-                  value: formatDateDisplay(startDate, startTime),
-                },
-                {
-                  label: '* Доступен до',
-                  value: formatDateDisplay(endDate, endTime),
-                },
-                { label: 'Пробег поездки', isInput: true },
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  className="input-wrap"
-                  custom={index}
-                  variants={inputWrapVariants}
-                >
-                  {!item.isInput ? (
-                    <>
-                      <span>{item.label}</span>
-                      <motion.div
-                        className="date"
-                        onClick={handleDateClick}
-                        whileHover={{
-                          y: -2,
-                          borderColor: 'rgba(255, 255, 255, 0.5)',
-                        }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{ type: 'spring', stiffness: 300 }}
-                      >
-                        {item.value}
-                      </motion.div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="top">
-                        <span>{item.label}</span>
-                        <a href="#">Как рассчитать?</a>
-                      </div>
-                      <input type="text" placeholder="Укажите пробег" />
-                      <span className="info-text">
-                        <img src="img/info-icon.svg" alt="" />
-                        <span>Общий пробег влияет на стоимость поездки</span>
-                      </span>
-                    </>
-                  )}
-                </motion.div>
-              ))}
-              <motion.button
-                className="red-btn"
-                variants={buttonVariants}
-                whileHover={{
-                  y: -2,
-                  boxShadow: '0 6px 20px rgba(238, 19, 42, 0.4)',
-                }}
-                whileTap={{ scale: 0.98 }}
               >
-                Найти свободные авто
-              </motion.button>
-            </motion.form>
+                <motion.img
+                  src="/img/persons.png"
+                  alt=""
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  className="h-[38px] relative"
+                />
+                <div className="texts" ref={countRef}>
+                  <b className="min-w-[80px]">
+                    {formatNumber(count)} {count >= 10000 && '+'}
+                  </b>
+                  <span>Довольных клиентов</span>
+                </div>
+              </motion.div>
+              <motion.h1
+                variants={titleVariants}
+                {...(headerAnimation && {
+                  initial: 'hidden',
+                  animate: 'visible',
+                })}
+              >
+                Долгосрочная аренда автомобилей
+                <motion.p
+                  variants={subtitleVariants}
+                  {...(headerAnimation && {
+                    initial: 'hidden',
+                    animate: 'visible',
+                  })}
+                >
+                  Подберем лучший вариант автомобиля от класса «эконом» до
+                  «бизнес премиум»
+                </motion.p>
+              </motion.h1>
+              <motion.form
+                className="banner-form"
+                variants={formVariants}
+                {...(headerAnimation && {
+                  initial: 'hidden',
+                  animate: 'visible',
+                })}
+              >
+                {[
+                  {
+                    label: '* Доступен с',
+                    value: formatDateDisplay(startDate, startTime),
+                  },
+                  {
+                    label: '* Доступен до',
+                    value: formatDateDisplay(endDate, endTime),
+                  },
+                  { label: 'Пробег поездки', isInput: true },
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    className="input-wrap"
+                    custom={index}
+                    variants={inputWrapVariants}
+                    {...(headerAnimation && {
+                      initial: 'hidden',
+                      animate: 'visible',
+                    })}
+                  >
+                    {!item.isInput ? (
+                      <>
+                        <span>{item.label}</span>
+                        <motion.div
+                          className="date"
+                          onClick={handleDateClick}
+                          whileHover={{
+                            y: -2,
+                            borderColor: 'rgba(255, 255, 255, 0.5)',
+                          }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: 'spring', stiffness: 300 }}
+                        >
+                          {item.value}
+                        </motion.div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="top">
+                          <span>{item.label}</span>
+                          <a href="#">Как рассчитать?</a>
+                        </div>
+                        <input type="text" placeholder="Укажите пробег" />
+                        <span className="info-text">
+                          <img src="img/info-icon.svg" alt="" />
+                          <span>Общий пробег влияет на стоимость поездки</span>
+                        </span>
+                      </>
+                    )}
+                  </motion.div>
+                ))}
+                <motion.button
+                  className="red-btn"
+                  variants={buttonVariants}
+                  {...(headerAnimation && {
+                    initial: 'hidden',
+                    animate: 'visible',
+                  })}
+                  whileHover={{
+                    y: -2,
+                    boxShadow: '0 6px 20px rgba(238, 19, 42, 0.4)',
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Найти свободные авто
+                </motion.button>
+              </motion.form>
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </>
   );
 }

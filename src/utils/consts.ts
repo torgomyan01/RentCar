@@ -1,5 +1,6 @@
 export const SITE_URL = {
   HOME: '/',
+  CONTACT: '/contact',
 };
 
 export const localStorageKeys = {

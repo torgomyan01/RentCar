@@ -1,8 +1,13 @@
 'use client';
 
+import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 
-function Footer() {
+interface FooterProps {
+  minHeight?: boolean;
+}
+
+function Footer({ minHeight = false }: FooterProps) {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -25,7 +30,7 @@ function Footer() {
   };
 
   return (
-    <footer className="footer">
+    <footer className={clsx('footer', minHeight && 'no-content')}>
       <div className="container">
         <div className="footer-top">
           <div className="text-style style2">
