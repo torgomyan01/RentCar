@@ -13,6 +13,7 @@ import type { Metadata } from 'next';
 import { Providers } from '@/app/providers';
 import { SesProviders } from '@/components/common/session-provider/session-provider';
 import { UiProviders } from '@/components/common/UIProvider/ui-provider';
+import { RentModalProvider } from '@/contexts/rent-modal-context';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -38,7 +39,9 @@ export default async function RootLayout({
           <SesProviders session={session}>
             <NextTopLoader />
             <Providers>
-              <UiProviders>{children}</UiProviders>
+              <UiProviders>
+                <RentModalProvider>{children}</RentModalProvider>
+              </UiProviders>
             </Providers>
           </SesProviders>
         </main>

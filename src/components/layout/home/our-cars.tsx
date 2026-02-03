@@ -30,7 +30,6 @@ function OurCars() {
       try {
         setLoading(true);
         const carsData = await getAllCarsFull();
-        console.log('Cars data:', carsData);
         setCars(carsData);
         setError(null);
       } catch (err) {
@@ -43,6 +42,44 @@ function OurCars() {
 
     fetchCars();
   }, []);
+
+  // Group cars by model/name (same car, different colors)
+  const groupCarsByModel = (cars: Car[]): Car[][] => {
+    const grouped = new Map<string, Car[]>();
+
+    cars.forEach((car) => {
+      // Create a unique key based on car name or make+model+year
+      // Use car_name if available, otherwise use make+model+year combination
+      let key = '';
+      if (car.car_name) {
+        key = car.car_name.trim();
+      } else {
+        const make = (car.make || '').trim();
+        const model = (car.model || '').trim();
+        const year = car.year ? String(car.year) : '';
+        key = `${make}_${model}_${year}`.trim();
+      }
+
+      // Fallback to code if available
+      if (!key && car.code) {
+        // Extract base code without color suffix if exists
+        key = car.code.split('_')[0] || car.code;
+      }
+
+      // Final fallback to ID
+      if (!key && car.id) {
+        key = `car_${car.id}`;
+      }
+
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(car);
+    });
+
+    // Convert map to array
+    return Array.from(grouped.values());
+  };
 
   return (
     <div className="our-cars">
@@ -79,12 +116,13 @@ function OurCars() {
             <>
               <div className="our-cars-items">
                 {cars.length > 0 ? (
-                  cars
+                  groupCarsByModel(cars)
                     .slice(0, 6)
-                    .map((car, index) => (
+                    .map((carGroup, index) => (
                       <ProductCard
-                        key={car.id || index}
-                        car={car}
+                        key={carGroup[0].id || carGroup[0].car_name || index}
+                        car={carGroup[0]}
+                        cars={carGroup}
                         index={index}
                       />
                     ))

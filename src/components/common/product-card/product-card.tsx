@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 
 interface ProductCardProps {
   car: Car;
+  cars?: Car[]; // Array of cars with same model but different colors
   index: number;
 }
 
@@ -177,7 +178,46 @@ function formatCarClass(carClass?: string | null): string {
   return carClass;
 }
 
-function ProductCard({ car, index }: ProductCardProps) {
+// Helper function to get color class name from color string
+function getColorClass(color: string | null | undefined): string {
+  if (!color) return '';
+  const colorLower = color.toLowerCase().trim();
+
+  // Map common color names to CSS classes
+  const colorMap: { [key: string]: string } = {
+    красный: 'red',
+    red: 'red',
+    черный: 'black',
+    black: 'black',
+    белый: 'white',
+    white: 'white',
+    серый: 'grey',
+    grey: 'grey',
+    gray: 'grey',
+    синий: 'blue',
+    blue: 'blue',
+    зеленый: 'green',
+    green: 'green',
+    желтый: 'yellow',
+    yellow: 'yellow',
+    серебристый: 'silver',
+    silver: 'silver',
+    коричневый: 'brown',
+    brown: 'brown',
+    'черный.серый': 'black-grey',
+  };
+
+  return colorMap[colorLower] || 'default';
+}
+
+function ProductCard({ car, cars, index }: ProductCardProps) {
+  // Get all unique colors from cars array
+  const allColors =
+    cars && cars.length > 1
+      ? Array.from(new Set(cars.map((c) => c.color).filter(Boolean)))
+      : car.color
+        ? [car.color]
+        : [];
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -263,7 +303,19 @@ function ProductCard({ car, index }: ProductCardProps) {
             </li>
             <li>
               <span className="grey">Цвет</span>
-              <span className="black">{car.color || '—'}</span>
+              {allColors.length > 0 ? (
+                <div className="colors">
+                  {allColors.map((color, idx) => (
+                    <span
+                      key={idx}
+                      className={getColorClass(color)}
+                      title={color || undefined}
+                    ></span>
+                  ))}
+                </div>
+              ) : (
+                <span className="black">—</span>
+              )}
             </li>
             {car.is_air && (
               <li>
