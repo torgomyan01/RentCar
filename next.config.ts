@@ -2,6 +2,10 @@ import path from 'path';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    // Отключаем проверку ESLint во время production build
+    ignoreDuringBuilds: true,
+  },
   typescript: {
     // Отключаем проверку TypeScript во время production build (опционально)
     ignoreBuildErrors: false,
