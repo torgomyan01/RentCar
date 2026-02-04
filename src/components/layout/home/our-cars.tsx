@@ -10,6 +10,12 @@ function OurCars() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    cars.forEach((car) => {
+      console.log(car.extra_mileage_km);
+    });
+  }, [cars]);
+
   const carFeatures = [
     {
       icon: '/img/our-cars-icon1.svg',

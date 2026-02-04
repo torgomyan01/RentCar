@@ -241,9 +241,19 @@ export const rentprogApiServer = {
   },
 
   // Get free cars
-  getFreeCars: async (): Promise<Car[]> => {
+  // start_date and end_date format: DD-MM-YYYY H:mm (e.g., "01-02-2026 10:00")
+  getFreeCars: async (
+    start_date: string,
+    end_date: string
+  ): Promise<Car[]> => {
     const response = await makeAuthenticatedRequest<Car[] | { data: Car[] }>(
-      '/free_cars'
+      '/free_cars',
+      {
+        params: {
+          start_date,
+          end_date,
+        },
+      }
     );
     return Array.isArray(response) ? response : response?.data || [];
   },

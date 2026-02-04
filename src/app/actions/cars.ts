@@ -28,10 +28,15 @@ export async function getAllCarsFull(): Promise<Car[]> {
 
 /**
  * Server Action: Get free cars
+ * @param start_date - Start date in format DD-MM-YYYY H:mm (e.g., "01-02-2026 10:00")
+ * @param end_date - End date in format DD-MM-YYYY H:mm (e.g., "05-02-2026 18:00")
  */
-export async function getFreeCars(): Promise<Car[]> {
+export async function getFreeCars(
+  start_date: string,
+  end_date: string
+): Promise<Car[]> {
   try {
-    return await rentprogApiServer.getFreeCars();
+    return await rentprogApiServer.getFreeCars(start_date, end_date);
   } catch (error) {
     console.error('Error in getFreeCars server action:', error);
     throw new Error('Failed to fetch free cars');

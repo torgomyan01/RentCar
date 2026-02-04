@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { SITE_URL } from '@/utils/consts';
+import { rentprogApi } from '@/services/rentprog-api';
 
 interface HeaderProps {
   minHeight?: boolean;
@@ -30,6 +31,7 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
   );
   const [startTime, setStartTime] = useState('12:00');
   const [endTime, setEndTime] = useState('14:00');
+  const [mileage, setMileage] = useState('');
   const [count, setCount] = useState(0);
   const countRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(countRef, { once: true, margin: '-100px' });
@@ -69,6 +71,14 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
     return `${day}.${month}.${year}. ${time}`;
   };
 
+  const formatDateForAPI = (date: Date | null, time: string) => {
+    if (!date) return '';
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year} ${time}`;
+  };
+
   const formatNumber = (num: number) => {
     return num.toLocaleString('ru-RU').replace(/,/g, ' ');
   };
@@ -89,6 +99,54 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
         setEndTime(newEndTime);
       },
     });
+  };
+
+  const handleSearchFreeCars = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!startDate || !endDate) {
+      console.warn('Пожалуйста, выберите даты начала и окончания');
+      return;
+    }
+
+    try {
+      const startDateFormatted = formatDateForAPI(startDate, startTime);
+      const endDateFormatted = formatDateForAPI(endDate, endTime);
+
+      const searchParams = {
+        start_date: startDateFormatted,
+        end_date: endDateFormatted,
+      };
+
+      console.log('=== Поиск свободных автомобилей ===');
+      console.log('Параметры поиска:', searchParams);
+      if (mileage) {
+        console.log('Пробег поездки (не отправляется в API):', mileage);
+      }
+
+      const freeCars = await rentprogApi.getFreeCars(
+        startDateFormatted,
+        endDateFormatted
+      );
+
+      console.log('=== Результаты поиска ===');
+      console.log('Найдено свободных автомобилей:', freeCars.length);
+      console.log('Список автомобилей:', freeCars);
+
+      // Детальная информация по каждому автомобилю
+      if (freeCars.length > 0) {
+        console.log(freeCars);
+      } else {
+        console.log('Свободных автомобилей не найдено для выбранных дат');
+      }
+    } catch (error: any) {
+      console.error('Ошибка при поиске свободных автомобилей:', error);
+      console.error('Детали ошибки:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
+    }
   };
 
   // Empty variants when animation is disabled
@@ -422,6 +480,7 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
                   initial: 'hidden',
                   animate: 'visible',
                 })}
+                onSubmit={handleSearchFreeCars}
               >
                 {[
                   {
@@ -466,7 +525,12 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
                           <span>{item.label}</span>
                           <a href="#">Как рассчитать?</a>
                         </div>
-                        <input type="text" placeholder="Укажите пробег" />
+                        <input
+                          type="text"
+                          placeholder="Укажите пробег"
+                          value={mileage}
+                          onChange={(e) => setMileage(e.target.value)}
+                        />
                         <span className="info-text">
                           <img src="img/info-icon.svg" alt="" />
                           <span>Общий пробег влияет на стоимость поездки</span>
@@ -476,6 +540,7 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
                   </motion.div>
                 ))}
                 <motion.button
+                  type="submit"
                   className="red-btn"
                   variants={buttonVariants}
                   {...(headerAnimation && {
