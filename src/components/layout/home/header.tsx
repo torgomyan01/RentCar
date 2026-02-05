@@ -12,6 +12,7 @@ import { rentprogApi } from '@/services/rentprog-api';
 interface HeaderProps {
   minHeight?: boolean;
   headerAnimation?: boolean;
+  headerConent?: React.ReactNode | null;
 }
 
 const menuItems = [
@@ -20,7 +21,7 @@ const menuItems = [
   { label: 'Контакты', href: SITE_URL.CONTACT },
 ];
 
-function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
+function Header({ minHeight = false, headerAnimation = true, headerConent = null }: HeaderProps) {
   const { openModal } = useRentModal();
   const pathname = usePathname();
   const [startDate, setStartDate] = useState<Date | null>(
@@ -430,7 +431,10 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
         >
           <div className="container">
             <div className="banner-info">
-              <motion.div
+             {
+              headerConent ? headerConent : (
+                <>
+                 <motion.div
                 className="persons-wrap cursor-default"
                 variants={personsVariants}
                 {...(headerAnimation && {
@@ -473,6 +477,9 @@ function Header({ minHeight = false, headerAnimation = true }: HeaderProps) {
                   «бизнес премиум»
                 </motion.p>
               </motion.h1>
+                </>
+              )
+             }
               <motion.form
                 className="banner-form"
                 variants={formVariants}
