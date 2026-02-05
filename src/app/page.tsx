@@ -7,7 +7,7 @@ import SearchHeader from './search/components/search-header';
 
 export default function Page() {
   return (
-    <MainTemplate headerConent={<SearchHeader />}>
+    <MainTemplate>
       <OurCars />
       <CarsRental />
       <FaqBlock />

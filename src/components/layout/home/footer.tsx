@@ -2,6 +2,7 @@
 
 import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
+import Link from 'next/link';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -65,20 +66,21 @@ function Footer({ minHeight = false }: FooterProps) {
           </form>
           <p className="text">
             Оставляя заявку на нашем сайте, вы даете свое согласие на{' '}
-            <a href="#">обработку персональных данных</a> и соглашаетесь с{' '}
-            <a href="#">политикой конфиденциальности</a>
+            <Link href="/offer">обработку персональных данных</Link> и
+            соглашаетесь с{' '}
+            <Link href="/privacy">политикой конфиденциальности</Link>
           </p>
         </div>
         <div className="footer-bottom">
           <p className="copyright">
             © {new Date().getFullYear()} - Нам по пути. Права защищены
           </p>
-          <a href="#" className="footer-link">
+          <Link href="/offer" className="footer-link">
             Публичная оферта
-          </a>
-          <a href="#" className="footer-link">
+          </Link>
+          <Link href="/privacy" className="footer-link">
             Политика конфиденциальности
-          </a>
+          </Link>
           <img src="/img/avito-logo.svg" alt="Avito" />
         </div>
       </div>

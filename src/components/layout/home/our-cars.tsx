@@ -1,20 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getAllCarsFull } from '@/app/actions/cars';
+import { useAppSelector } from '@/store/store';
 import type { Car } from '@/lib/rentprog-api-server';
 import ProductCard from '@/components/common/product-card/product-card';
+import Link from 'next/link';
+import { SITE_URL } from '@/utils/consts';
 
 function OurCars() {
-  const [cars, setCars] = useState<Car[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    cars.forEach((car) => {
-      console.log(car.extra_mileage_km);
-    });
-  }, [cars]);
+  // Cars are already loaded by CarsProvider in the root layout
+  const { cars, loading, error } = useAppSelector((state) => state.cars);
 
   const carFeatures = [
     {
@@ -30,24 +24,6 @@ function OurCars() {
       text: 'Предоставляем большой выбор автомобилей',
     },
   ];
-
-  useEffect(() => {
-    const fetchCars = async () => {
-      try {
-        setLoading(true);
-        const carsData = await getAllCarsFull();
-        setCars(carsData);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching cars:', err);
-        setError('Не удалось загрузить автомобили');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCars();
-  }, []);
 
   // Group cars by model/name (same car, different colors)
   const groupCarsByModel = (cars: Car[]): Car[][] => {
@@ -138,9 +114,9 @@ function OurCars() {
                   </div>
                 )}
               </div>
-              <a href="#" className="red-btn">
+              <Link href={SITE_URL.CATALOG} className="red-btn">
                 Посмотреть все автомобили
-              </a>
+              </Link>
             </>
           )}
         </div>

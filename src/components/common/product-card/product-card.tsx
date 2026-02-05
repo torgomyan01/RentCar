@@ -5,6 +5,9 @@ interface ProductCardProps {
   car: Car;
   cars?: Car[]; // Array of cars with same model but different colors
   index: number;
+  yearRange?: string;
+  uniqueColors?: string[];
+  otherInfo?: React.ReactNode;
 }
 
 // Helper function to format car name
@@ -210,7 +213,31 @@ function getColorClass(color: string | null | undefined): string {
   return colorMap[colorLower] || 'default';
 }
 
-function ProductCard({ car, cars, index }: ProductCardProps) {
+// Helper function to get year range from cars array
+function getYearRange(cars: Car[] | undefined, currentCar: Car): string {
+  if (!cars || cars.length <= 1) {
+    return currentCar.year ? String(currentCar.year) : '—';
+  }
+
+  const years = cars
+    .map((car) => car.year)
+    .filter((year): year is number => year !== undefined && year !== null)
+    .sort((a, b) => a - b);
+
+  if (years.length === 0) return '—';
+  if (years.length === 1) return String(years[0]);
+
+  const minYear = years[0];
+  const maxYear = years[years.length - 1];
+
+  if (minYear === maxYear) {
+    return String(minYear);
+  }
+
+  return `${minYear}-${maxYear}`;
+}
+
+function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
   // Get all unique colors from cars array
   const allColors =
     cars && cars.length > 1
@@ -218,6 +245,10 @@ function ProductCard({ car, cars, index }: ProductCardProps) {
       : car.color
         ? [car.color]
         : [];
+
+  // Get year range from cars array
+  const yearRange = getYearRange(cars, car);
+
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -269,7 +300,7 @@ function ProductCard({ car, cars, index }: ProductCardProps) {
           <ul className="tooltip-list">
             <li>
               <span className="grey">Год выпуска</span>
-              <span className="black">{car.year || '—'}</span>
+              <span className="black">{yearRange}</span>
             </li>
             <li>
               <span className="grey">Коробка</span>
@@ -342,13 +373,20 @@ function ProductCard({ car, cars, index }: ProductCardProps) {
         </li>
         <li>
           <span>Год выпуска</span>
-          <b>{car.year || '—'}</b>
+          <b>{yearRange}</b>
         </li>
       </ul>
-      <div className="price-info">
-        <span>Стоимость аренды</span>
-        <b className="price">{formatPrice(car)}</b>
-      </div>
+      {otherInfo ? (
+        otherInfo
+      ) : (
+        <>
+          <div className="price-info">
+            <span>Стоимость аренды</span>
+            <b className="price">{formatPrice(car)}</b>
+          </div>
+        </>
+      )}
+
       <div className="buttons">
         <a href="#" className="red-btn">
           Оставить заявку

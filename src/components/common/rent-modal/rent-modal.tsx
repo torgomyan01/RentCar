@@ -116,8 +116,17 @@ const RentModal = ({
     return date.getMonth() !== currentMonth.getMonth();
   };
 
+  // Check if date is in the past (before today)
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateToCheck = new Date(date);
+    dateToCheck.setHours(0, 0, 0, 0);
+    return dateToCheck < today;
+  };
+
   const handleDateClick = (date: Date) => {
-    if (isDateMuted(date)) return;
+    if (isDateMuted(date) || isDateDisabled(date)) return;
 
     if (!startDate || (startDate && endDate)) {
       // Start new selection
@@ -136,9 +145,22 @@ const RentModal = ({
   };
 
   const handlePrevMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+    const newMonth = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth() - 1,
+      1
     );
+    const today = new Date();
+    const currentMonthStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1
+    );
+
+    // Don't allow going to previous months before current month
+    if (newMonth >= currentMonthStart) {
+      setCurrentMonth(newMonth);
+    }
   };
 
   const handleNextMonth = () => {
@@ -152,8 +174,18 @@ const RentModal = ({
       e.stopPropagation();
     }
     if (startDate && endDate && !isClosing) {
-      onSave(startDate, endDate, startTime, endTime);
-      handleClose(e);
+      // Double check that dates are not in the past
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(0, 0, 0, 0);
+
+      if (start >= today && end >= today) {
+        onSave(startDate, endDate, startTime, endTime);
+        handleClose(e);
+      }
     }
   };
 
@@ -246,7 +278,26 @@ const RentModal = ({
             </div>
 
             <div className="calendar-header">
-              <button className="calendar-nav" onClick={handlePrevMonth}>
+              <button
+                className="calendar-nav"
+                onClick={handlePrevMonth}
+                disabled={
+                  currentMonth.getFullYear() === new Date().getFullYear() &&
+                  currentMonth.getMonth() === new Date().getMonth()
+                }
+                style={{
+                  opacity:
+                    currentMonth.getFullYear() === new Date().getFullYear() &&
+                    currentMonth.getMonth() === new Date().getMonth()
+                      ? 0.4
+                      : 1,
+                  cursor:
+                    currentMonth.getFullYear() === new Date().getFullYear() &&
+                    currentMonth.getMonth() === new Date().getMonth()
+                      ? 'not-allowed'
+                      : 'pointer',
+                }}
+              >
                 ‹
               </button>
               <span>{getMonthName(currentMonth)}</span>
@@ -264,18 +315,40 @@ const RentModal = ({
             <div className="calendar-grid">
               {days.map((day, idx) => {
                 const isMuted = isDateMuted(day);
+                const isDisabled = isDateDisabled(day);
                 const isSelected = isDateSelected(day);
                 const isInRange = isDateInRange(day);
+
+                // Determine background color based on state
+                let backgroundColor = 'transparent';
+                let color = undefined;
+
+                if (isDisabled) {
+                  backgroundColor = 'rgba(200, 200, 200, 0.3)';
+                  color = '#888';
+                } else if (isSelected || isInRange) {
+                  backgroundColor = '#ee132a'; // Red color for selected range
+                  color = '#fff'; // White text on red background
+                }
 
                 return (
                   <span
                     key={idx}
                     className={`day ${isMuted ? 'muted' : ''} ${
-                      isSelected || isInRange ? 'active' : ''
-                    } ${isSelected ? 'selected' : ''}`}
+                      isDisabled ? 'disabled' : ''
+                    } ${isSelected || isInRange ? 'active' : ''} ${
+                      isSelected ? 'selected' : ''
+                    }`}
                     onClick={() => handleDateClick(day)}
                     style={{
                       animationDelay: `${idx * 0.01}s`,
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1,
+                      pointerEvents: isDisabled ? 'none' : 'auto',
+                      backgroundColor,
+                      color,
+                      textDecoration: isDisabled ? 'line-through' : 'none',
+                      filter: isDisabled ? 'grayscale(100%)' : 'none',
                     }}
                   >
                     {day.getDate()}

@@ -4,10 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { SITE_URL } from '@/utils/consts';
 import { rentprogApi } from '@/services/rentprog-api';
+import { useAppSelector } from '@/store/store';
 
 interface HeaderProps {
   minHeight?: boolean;
@@ -21,9 +22,18 @@ const menuItems = [
   { label: 'Контакты', href: SITE_URL.CONTACT },
 ];
 
-function Header({ minHeight = false, headerAnimation = true, headerConent = null }: HeaderProps) {
+function Header({
+  minHeight = false,
+  headerAnimation = true,
+  headerConent = null,
+}: HeaderProps) {
   const { openModal } = useRentModal();
   const pathname = usePathname();
+  const router = useRouter();
+  const { cars, loading, error, lastFetched } = useAppSelector(
+    (state) => state.cars
+  );
+
   const [startDate, setStartDate] = useState<Date | null>(
     new Date(2025, 10, 28) // November 28, 2025
   );
@@ -110,44 +120,23 @@ function Header({ minHeight = false, headerAnimation = true, headerConent = null
       return;
     }
 
-    try {
-      const startDateFormatted = formatDateForAPI(startDate, startTime);
-      const endDateFormatted = formatDateForAPI(endDate, endTime);
+    // Format dates for URL
+    const startDateFormatted = formatDateForAPI(startDate, startTime);
+    const endDateFormatted = formatDateForAPI(endDate, endTime);
 
-      const searchParams = {
-        start_date: startDateFormatted,
-        end_date: endDateFormatted,
-      };
+    // Build query parameters
+    const params = new URLSearchParams({
+      start_date: startDateFormatted,
+      end_date: endDateFormatted,
+    });
 
-      console.log('=== Поиск свободных автомобилей ===');
-      console.log('Параметры поиска:', searchParams);
-      if (mileage) {
-        console.log('Пробег поездки (не отправляется в API):', mileage);
-      }
-
-      const freeCars = await rentprogApi.getFreeCars(
-        startDateFormatted,
-        endDateFormatted
-      );
-
-      console.log('=== Результаты поиска ===');
-      console.log('Найдено свободных автомобилей:', freeCars.length);
-      console.log('Список автомобилей:', freeCars);
-
-      // Детальная информация по каждому автомобилю
-      if (freeCars.length > 0) {
-        console.log(freeCars);
-      } else {
-        console.log('Свободных автомобилей не найдено для выбранных дат');
-      }
-    } catch (error: any) {
-      console.error('Ошибка при поиске свободных автомобилей:', error);
-      console.error('Детали ошибки:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-      });
+    // Add mileage if provided
+    if (mileage) {
+      params.append('mileage', mileage);
     }
+
+    // Redirect to search page with query parameters
+    router.push(`/search?${params.toString()}`);
   };
 
   // Empty variants when animation is disabled
@@ -295,6 +284,15 @@ function Header({ minHeight = false, headerAnimation = true, headerConent = null
       }
     : emptyVariants;
 
+  const handleMileageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // Allow only numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      setMileage(value);
+    }
+  };
+
   return (
     <>
       <motion.header
@@ -431,55 +429,55 @@ function Header({ minHeight = false, headerAnimation = true, headerConent = null
         >
           <div className="container">
             <div className="banner-info">
-             {
-              headerConent ? headerConent : (
+              {headerConent ? (
+                headerConent
+              ) : (
                 <>
-                 <motion.div
-                className="persons-wrap cursor-default"
-                variants={personsVariants}
-                {...(headerAnimation && {
-                  initial: 'hidden',
-                  animate: 'visible',
-                })}
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              >
-                <motion.img
-                  src="/img/persons.png"
-                  alt=""
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ type: 'spring', stiffness: 300 }}
-                  className="h-[38px] relative"
-                />
-                <div className="texts" ref={countRef}>
-                  <b className="min-w-[80px]">
-                    {formatNumber(count)} {count >= 10000 && '+'}
-                  </b>
-                  <span>Довольных клиентов</span>
-                </div>
-              </motion.div>
-              <motion.h1
-                variants={titleVariants}
-                {...(headerAnimation && {
-                  initial: 'hidden',
-                  animate: 'visible',
-                })}
-              >
-                Долгосрочная аренда автомобилей
-                <motion.p
-                  variants={subtitleVariants}
-                  {...(headerAnimation && {
-                    initial: 'hidden',
-                    animate: 'visible',
-                  })}
-                >
-                  Подберем лучший вариант автомобиля от класса «эконом» до
-                  «бизнес премиум»
-                </motion.p>
-              </motion.h1>
+                  <motion.div
+                    className="persons-wrap cursor-default"
+                    variants={personsVariants}
+                    {...(headerAnimation && {
+                      initial: 'hidden',
+                      animate: 'visible',
+                    })}
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ type: 'spring', stiffness: 300 }}
+                  >
+                    <motion.img
+                      src="/img/persons.png"
+                      alt=""
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
+                      className="h-[38px] relative"
+                    />
+                    <div className="texts" ref={countRef}>
+                      <b className="min-w-[80px]">
+                        {formatNumber(count)} {count >= 10000 && '+'}
+                      </b>
+                      <span>Довольных клиентов</span>
+                    </div>
+                  </motion.div>
+                  <motion.h1
+                    variants={titleVariants}
+                    {...(headerAnimation && {
+                      initial: 'hidden',
+                      animate: 'visible',
+                    })}
+                  >
+                    Долгосрочная аренда автомобилей
+                    <motion.p
+                      variants={subtitleVariants}
+                      {...(headerAnimation && {
+                        initial: 'hidden',
+                        animate: 'visible',
+                      })}
+                    >
+                      Подберем лучший вариант автомобиля от класса «эконом» до
+                      «бизнес премиум»
+                    </motion.p>
+                  </motion.h1>
                 </>
-              )
-             }
+              )}
               <motion.form
                 className="banner-form"
                 variants={formVariants}
@@ -498,7 +496,10 @@ function Header({ minHeight = false, headerAnimation = true, headerConent = null
                     label: '* Доступен до',
                     value: formatDateDisplay(endDate, endTime),
                   },
-                  { label: 'Пробег поездки', isInput: true },
+                  {
+                    label: 'Пробег поездки',
+                    isInput: true,
+                  },
                 ].map((item, index) => (
                   <motion.div
                     key={index}
@@ -534,9 +535,10 @@ function Header({ minHeight = false, headerAnimation = true, headerConent = null
                         </div>
                         <input
                           type="text"
+                          inputMode="numeric"
                           placeholder="Укажите пробег"
                           value={mileage}
-                          onChange={(e) => setMileage(e.target.value)}
+                          onChange={handleMileageChange}
                         />
                         <span className="info-text">
                           <img src="img/info-icon.svg" alt="" />
