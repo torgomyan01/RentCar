@@ -89,6 +89,38 @@ function formatDriveUnit(drive: string | undefined): string {
   return driveMap[drive.toLowerCase()] || drive;
 }
 
+// Helper function to get color class name from color string
+function getColorClass(color: string | null | undefined): string {
+  if (!color) return '';
+  const colorLower = color.toLowerCase().trim();
+
+  // Map common color names to CSS classes
+  const colorMap: { [key: string]: string } = {
+    красный: 'red',
+    red: 'red',
+    черный: 'black',
+    black: 'black',
+    белый: 'white',
+    white: 'white',
+    серый: 'grey',
+    grey: 'grey',
+    gray: 'grey',
+    синий: 'blue',
+    blue: 'blue',
+    зеленый: 'green',
+    green: 'green',
+    желтый: 'yellow',
+    yellow: 'yellow',
+    серебристый: 'silver',
+    silver: 'silver',
+    коричневый: 'brown',
+    brown: 'brown',
+    'черный.серый': 'black-grey',
+  };
+
+  return colorMap[colorLower] || 'default';
+}
+
 // Helper function to calculate days between dates
 function calculateDays(
   startDateStr: string | null,
@@ -395,30 +427,14 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
                     uniqueColors.map((color, index) => (
                       <span
                         key={index}
-                        className={color.toLowerCase()}
-                        style={{
-                          display: 'inline-block',
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          backgroundColor: color.toLowerCase(),
-                          border: '1px solid #ccc',
-                          marginRight: '5px',
-                        }}
-                        title={color}
+                        className={getColorClass(color)}
+                        title={color || undefined}
                       ></span>
                     ))
                   ) : car.color ? (
                     <span
-                      className={car.color.toLowerCase()}
-                      style={{
-                        display: 'inline-block',
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '50%',
-                        backgroundColor: car.color.toLowerCase(),
-                        border: '1px solid #ccc',
-                      }}
+                      className={getColorClass(car.color)}
+                      title={car.color || undefined}
                     ></span>
                   ) : (
                     '—'
