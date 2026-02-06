@@ -353,10 +353,16 @@ function Header({
                 })}
               </ul>
               <div className="soc-icons">
-                {[0, 1, 2].map((index) => (
+                {[
+                  { href: 'https://wa.me/79857396760', alt: 'Telegram' },
+                  { href: 'https://t.me/ArendaAutoMoscow', alt: 'WhatsApp' },
+                  { href: 'https://t.me/aaaallleeexxxx', alt: 'Telegram' },
+                ].map((social, index) => (
                   <motion.a
                     key={index}
-                    href="#"
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     custom={index}
                     variants={socialIconVariants}
                     {...(headerAnimation && {
@@ -366,7 +372,10 @@ function Header({
                     whileHover={{ scale: 1.1, borderColor: '#ee132a' }}
                     className={index === 2 ? 'hide' : ''}
                   >
-                    <img src={`/img/soc-icon${index + 1}.svg`} alt="" />
+                    <img
+                      src={`/img/soc-icon${index + 1}.svg`}
+                      alt={social.alt}
+                    />
                   </motion.a>
                 ))}
               </div>
@@ -392,14 +401,26 @@ function Header({
                 animate: 'visible',
               })}
             >
-              <a href="#">
-                <img src="/img/soc-icon1.svg" alt="" />
+              <a
+                href="https://t.me/ArendaAutoMoscow"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img src="/img/soc-icon1.svg" alt="Telegram" />
               </a>
-              <a href="#">
-                <img src="/img/soc-icon2.svg" alt="" />
+              <a
+                href="https://wa.me/79857396760"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img src="/img/soc-icon2.svg" alt="WhatsApp" />
               </a>
-              <a href="#">
-                <img src="/img/soc-icon3.svg" alt="" />
+              <a
+                href="https://t.me/aaaallleeexxxx"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img src="/img/soc-icon3.svg" alt="Telegram" />
               </a>
             </motion.div>
             <motion.div

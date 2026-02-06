@@ -1,5 +1,7 @@
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 interface ProductCardProps {
   car: Car;
@@ -238,6 +240,8 @@ function getYearRange(cars: Car[] | undefined, currentCar: Car): string {
 }
 
 function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
+  const searchParams = useSearchParams();
+
   // Get all unique colors from cars array
   const allColors =
     cars && cars.length > 1
@@ -251,6 +255,13 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
 
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Build product URL with search params
+  const productUrl = useMemo(() => {
+    const baseUrl = `/product/${car.id}`;
+    const params = searchParams.toString();
+    return params ? `${baseUrl}?${params}` : baseUrl;
+  }, [car.id, searchParams]);
 
   const handleTooltipClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -281,9 +292,9 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
   return (
     <div className="car-item">
       <div className="img-wrap">
-        <a href="#" className="img">
+        <Link href={productUrl} className="img">
           <img src={getCarImage(car, index)} alt={formatCarName(car)} />
-        </a>
+        </Link>
 
         <div className="tooltip-icon" onClick={handleTooltipClick}>
           <img
@@ -391,9 +402,9 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
         <a href="#" className="red-btn">
           Оставить заявку
         </a>
-        <a href="#" className="border-btn">
+        <Link href={productUrl} className="border-btn">
           Подробнее
-        </a>
+        </Link>
       </div>
     </div>
   );
