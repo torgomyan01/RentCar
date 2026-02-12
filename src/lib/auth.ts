@@ -1,6 +1,8 @@
 // src/lib/auth.ts
 import type { NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/prisma';
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
@@ -51,22 +53,84 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(creds) {
-        const username = (creds?.username as string)?.trim() || '';
-        const password = String(creds?.password ?? '');
+        try {
+          const username = (creds?.username as string)?.trim() || '';
+          const password = String(creds?.password ?? '');
 
-        if (!username || !password) {
+          console.log('[Auth] Attempting login for username:', username);
+
+          if (!username || !password) {
+            console.log('[Auth] Missing username or password');
+            return null;
+          }
+
+          // Find user in database
+          let user;
+          try {
+            user = await prisma.user.findUnique({
+              where: { username },
+            });
+            console.log('[Auth] Database query result:', user ? 'User found' : 'User not found');
+          } catch (dbError: any) {
+            console.error('[Auth] Database error:', dbError);
+            console.error('[Auth] Database error message:', dbError?.message);
+            throw dbError;
+          }
+
+          if (!user) {
+            console.log('[Auth] User not found in database:', username);
+            return null;
+          }
+
+          console.log('[Auth] User found:', {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            hasPassword: !!user.password,
+          });
+
+          // Check if user is admin
+          if (user.role !== 'admin') {
+            console.log('[Auth] User is not admin:', {
+              username,
+              role: user.role,
+            });
+            return null;
+          }
+
+          // Verify password
+          let isValidPassword = false;
+          try {
+            isValidPassword = await bcrypt.compare(password, user.password);
+            console.log('[Auth] Password comparison result:', isValidPassword);
+          } catch (bcryptError: any) {
+            console.error('[Auth] Bcrypt error:', bcryptError);
+            console.error('[Auth] Bcrypt error message:', bcryptError?.message);
+            throw bcryptError;
+          }
+
+          if (!isValidPassword) {
+            console.log('[Auth] Password mismatch for user:', username);
+            return null;
+          }
+
+          console.log('[Auth] Authentication successful for:', username);
+          return {
+            id: user.id,
+            name: user.username,
+            email: user.email,
+            role: user.role,
+            type: 'admin',
+          } as any;
+        } catch (error: any) {
+          console.error('[Auth] Error during authorization:', error);
+          console.error('[Auth] Error details:', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+          });
           return null;
         }
-
-        // Import admin credentials
-
-        return {
-          id: 'admin',
-          name: username,
-          email: `${username}@admin.local`,
-          role: 'admin',
-          type: 'admin',
-        } as any;
       },
     }),
   ],

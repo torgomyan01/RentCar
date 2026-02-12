@@ -73,11 +73,19 @@ function ContactBlock() {
                 +7 (900) 500‒10‒10
               </a>
               <div className="soc-btns">
-                <a href="#">
+                <a
+                  href="https://wa.me/79857396760"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <img src="/img/soc-icon1.svg" alt="" />
                   Whatsapp
                 </a>
-                <a href="#">
+                <a
+                  href="https://t.me/ArendaAutoMoscow"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <img src="/img/soc-icon2.svg" alt="" />
                   Telegram
                 </a>

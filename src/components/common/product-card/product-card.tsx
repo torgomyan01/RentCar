@@ -1,5 +1,5 @@
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -255,6 +255,66 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
 
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const [groupMediaImage, setGroupMediaImage] = useState<string | null>(null);
+  const mediaFetchedRef = useRef<Set<string>>(new Set());
+
+  // Calculate group key (same logic as product-client.tsx)
+  const groupKey = useMemo(() => {
+    const firstCar = cars && cars.length > 0 ? cars[0] : car;
+    if (!firstCar) return '';
+
+    let key = '';
+    if (firstCar.car_name) {
+      key = firstCar.car_name.trim();
+      key = key.replace(/\s+\d{4}$/, '').trim();
+    } else {
+      const make = (firstCar.make || '').trim();
+      const model = (firstCar.model || '').trim();
+      key = `${make}_${model}`.trim();
+    }
+
+    if (!key && firstCar.code) {
+      key = firstCar.code.split('_')[0] || firstCar.code;
+    }
+
+    if (!key && firstCar.id) {
+      key = `car_${firstCar.id}`;
+    }
+
+    return key;
+  }, [car, cars]);
+
+  // Fetch group media
+  const fetchGroupMedia = useCallback(async (key: string) => {
+    // Prevent duplicate fetches
+    if (mediaFetchedRef.current.has(key)) {
+      return;
+    }
+
+    try {
+      mediaFetchedRef.current.add(key);
+      const encodedGroupKey = encodeURIComponent(key);
+      const response = await fetch(`/api/cars/${encodedGroupKey}/media`);
+      const data = await response.json();
+      if (response.ok && data.media && data.media.length > 0) {
+        // Get first image from group media
+        const firstImage = data.media.find((m: any) => m.type === 'image');
+        if (firstImage) {
+          setGroupMediaImage(firstImage.filePath);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching media:', error);
+      // Remove from cache on error so it can retry
+      mediaFetchedRef.current.delete(key);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (groupKey && !mediaFetchedRef.current.has(groupKey)) {
+      fetchGroupMedia(groupKey);
+    }
+  }, [groupKey, fetchGroupMedia]);
 
   // Build product URL with search params
   const productUrl = useMemo(() => {
@@ -289,11 +349,14 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
     };
   }, [isTooltipOpen]);
 
+  // Use group media image if available, otherwise fallback to car image
+  const displayImage = groupMediaImage || getCarImage(car, index);
+
   return (
     <div className="car-item">
       <div className="img-wrap">
         <Link href={productUrl} className="img">
-          <img src={getCarImage(car, index)} alt={formatCarName(car)} />
+          <img src={displayImage} alt={formatCarName(car)} />
         </Link>
 
         <div className="tooltip-icon" onClick={handleTooltipClick}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MainTemplate from '@/components/common/main-template/main-template';
 import SearchHeader from '@/app/search/components/search-header';
@@ -11,6 +11,8 @@ import { Navigation, Thumbs } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/thumbs';
+import { Tooltip } from '@heroui/react';
+import { useRentModal } from '@/contexts/rent-modal-context';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -169,8 +171,21 @@ interface ProductClientProps {
 
 export default function ProductClient({ car, allCars }: ProductClientProps) {
   const searchParams = useSearchParams();
-  const startDate = searchParams.get('start_date');
-  const endDate = searchParams.get('end_date');
+  const { openModal } = useRentModal();
+  const urlStartDate = searchParams.get('start_date');
+  const urlEndDate = searchParams.get('end_date');
+
+  // State for dates selected in modal (if not in URL)
+  const [selectedStartDate, setSelectedStartDate] = useState<string | null>(
+    null
+  );
+  const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
+  const [selectedStartTime, setSelectedStartTime] = useState<string>('14:00');
+  const [selectedEndTime, setSelectedEndTime] = useState<string>('22:00');
+
+  // Use URL dates if available, otherwise use selected dates from modal
+  const startDate = urlStartDate || selectedStartDate;
+  const endDate = urlEndDate || selectedEndDate;
 
   const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [selectedOptions, setSelectedOptions] = useState<
@@ -183,6 +198,25 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     'child-seat': true,
     'extra-driver': false,
   });
+  const [groupMedia, setGroupMedia] = useState<
+    Array<{
+      id: string;
+      type: 'image' | 'video';
+      fileName: string;
+      filePath: string;
+      fileSize: number;
+    }>
+  >([]);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const mediaFetchedRef = useRef<Set<string>>(new Set());
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+  }>({ type: null, message: '' });
 
   const rentalDays = useMemo(
     () => calculateDays(startDate, endDate),
@@ -233,6 +267,60 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     }
     return [car];
   }, [allCars, car]);
+
+  // Get group key for fetching media
+  const groupKey = useMemo(() => {
+    const firstCar = carGroup[0];
+    if (!firstCar) return '';
+
+    let key = '';
+    if (firstCar.car_name) {
+      key = firstCar.car_name.trim();
+      key = key.replace(/\s+\d{4}$/, '').trim();
+    } else {
+      const make = (firstCar.make || '').trim();
+      const model = (firstCar.model || '').trim();
+      key = `${make}_${model}`.trim();
+    }
+
+    if (!key && firstCar.code) {
+      key = firstCar.code.split('_')[0] || firstCar.code;
+    }
+
+    if (!key && firstCar.id) {
+      key = `car_${firstCar.id}`;
+    }
+
+    return key;
+  }, [carGroup]);
+
+  // Fetch group media
+  const fetchGroupMedia = useCallback(async (key: string) => {
+    // Prevent duplicate fetches
+    if (mediaFetchedRef.current.has(key)) {
+      return;
+    }
+
+    try {
+      mediaFetchedRef.current.add(key);
+      const encodedGroupKey = encodeURIComponent(key);
+      const response = await fetch(`/api/cars/${encodedGroupKey}/media`);
+      const data = await response.json();
+      if (response.ok) {
+        setGroupMedia(data.media || []);
+      }
+    } catch (error) {
+      console.error('Error fetching media:', error);
+      // Remove from cache on error so it can retry
+      mediaFetchedRef.current.delete(key);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (groupKey && !mediaFetchedRef.current.has(groupKey)) {
+      fetchGroupMedia(groupKey);
+    }
+  }, [groupKey, fetchGroupMedia]);
 
   // Get unique colors from car group
   const uniqueColors = useMemo(() => {
@@ -292,12 +380,48 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   }, [rentalDays, prices]);
 
   const additionalOptions = [
-    { id: 'peace-package', name: 'Пакет «Спокойствие»', price: 5000 },
-    { id: 'casco', name: 'КАСКО', price: 2000 },
-    { id: 'casco-no-franchise', name: 'КАСКО без франшизы', price: 15000 },
-    { id: 'booster', name: 'Аренда бустера', price: 2000 },
-    { id: 'child-seat', name: 'Детское кресло', price: 1000 },
-    { id: 'extra-driver', name: 'Доп. водитель', price: 3000 },
+    {
+      id: 'peace-package',
+      name: 'Пакет «Спокойствие»',
+      price: 5000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
+    {
+      id: 'casco',
+      name: 'КАСКО',
+      price: 2000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
+    {
+      id: 'casco-no-franchise',
+      name: 'КАСКО без франшизы',
+      price: 15000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
+    {
+      id: 'booster',
+      name: 'Аренда бустера',
+      price: 2000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
+    {
+      id: 'child-seat',
+      name: 'Детское кресло',
+      price: 1000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
+    {
+      id: 'extra-driver',
+      name: 'Доп. водитель',
+      price: 3000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
   ];
 
   const totalAdditionalPrice = useMemo(() => {
@@ -305,6 +429,11 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       return sum + (selectedOptions[option.id] ? option.price : 0);
     }, 0);
   }, [selectedOptions]);
+
+  // Get selected options for display
+  const selectedOptionsList = useMemo(() => {
+    return additionalOptions.filter((option) => selectedOptions[option.id]);
+  }, [selectedOptions, additionalOptions]);
 
   const totalPrice = rentalPrice + totalAdditionalPrice;
   const deposit = 5000;
@@ -316,18 +445,222 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     }));
   };
 
-  const handleBooking = () => {
-    // TODO: Implement booking logic
-    console.log('Booking car:', car.id);
-  };
+  // Helper function to format date for API (DD-MM-YYYY H:mm)
+  const formatDateForAPI = useCallback((date: Date, time: string): string => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year} ${time}`;
+  }, []);
+
+  const handleBooking = useCallback(async () => {
+    // Validate inputs
+    if (!name.trim()) {
+      setSubmitStatus({
+        type: 'error',
+        message: 'Пожалуйста, введите имя',
+      });
+      return;
+    }
+
+    if (!phone.trim()) {
+      setSubmitStatus({
+        type: 'error',
+        message: 'Пожалуйста, введите номер телефона',
+      });
+      return;
+    }
+
+    // Check if dates are selected
+    const currentStartDate = urlStartDate || selectedStartDate;
+    const currentEndDate = urlEndDate || selectedEndDate;
+
+    if (!currentStartDate || !currentEndDate) {
+      // Open modal to select dates
+      openModal({
+        onSave: (
+          newStartDate: Date,
+          newEndDate: Date,
+          newStartTime: string,
+          newEndTime: string
+        ) => {
+          // Save dates to state
+          const formattedStartDate = formatDateForAPI(
+            newStartDate,
+            newStartTime
+          );
+          const formattedEndDate = formatDateForAPI(newEndDate, newEndTime);
+
+          setSelectedStartDate(formattedStartDate);
+          setSelectedEndDate(formattedEndDate);
+          setSelectedStartTime(newStartTime);
+          setSelectedEndTime(newEndTime);
+
+          // After modal closes and state updates, trigger booking again
+          setTimeout(() => {
+            handleBooking();
+          }, 200);
+        },
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus({ type: null, message: '' });
+
+    try {
+      // Randomly select a car from the group
+      const randomCar = carGroup[Math.floor(Math.random() * carGroup.length)];
+
+      // Format selected options
+      const selectedOptionsText = selectedOptionsList
+        .map((opt) => `${opt.name} - ${opt.price.toLocaleString('ru-RU')} ₽`)
+        .join('\n');
+
+      // Format car details
+      const carDetails = `
+🚗 *Автомобиль:*
+• Модель: ${formatCarName(randomCar)}
+• Год: ${randomCar.year || '—'}
+• Цвет: ${randomCar.color || '—'}
+• КПП: ${formatTransmission(randomCar.transmission)}
+• Топливо: ${formatFuel(randomCar.fuel)}
+• Привод: ${formatDriveUnit(randomCar.drive_unit)}
+• Объем двигателя: ${randomCar.engine_capacity || '—'} л
+• Класс: ${randomCar.car_class || '—'}
+• Тип: ${randomCar.car_type || '—'}
+• ID: ${randomCar.id || '—'}
+• Код: ${randomCar.code || '—'}
+      `.trim();
+
+      // Format rental information
+      const rentalInfo =
+        startDate && endDate
+          ? `
+📅 *Период аренды:*
+• Начало: ${formatDateDisplay(startDate)}
+• Окончание: ${formatDateDisplay(endDate)}
+• Количество суток: ${rentalDays}
+• Включенный километраж: ${includedMileage.toLocaleString('ru-RU')} км
+        `.trim()
+          : '📅 *Период аренды:* не указан';
+
+      // Format pricing
+      const pricingInfo = `
+💰 *Стоимость:*
+• Аренда: ${rentalPrice.toLocaleString('ru-RU')} ₽
+${selectedOptionsText ? `• Дополнительные опции:\n${selectedOptionsText}` : ''}
+• Депозит: ${deposit.toLocaleString('ru-RU')} ₽
+• Итого: ${totalPrice.toLocaleString('ru-RU')} ₽
+      `.trim();
+
+      // Format complete message (API will add its own header)
+      const message = `
+🆕 *Заявка на бронирование автомобиля*
+
+👤 *Клиент:*
+• Имя: ${name}
+• Телефон: ${phone}
+
+${carDetails}
+
+${rentalInfo}
+
+${pricingInfo}
+      `.trim();
+
+      // Send to Telegram
+      const response = await fetch('/api/telegram/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          phone,
+          message,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSubmitStatus({
+          type: 'success',
+          message:
+            'Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.',
+        });
+        // Clear form
+        setName('');
+        setPhone('');
+      } else {
+        setSubmitStatus({
+          type: 'error',
+          message:
+            data.error || 'Ошибка при отправке заявки. Попробуйте еще раз.',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error sending booking:', error);
+      setSubmitStatus({
+        type: 'error',
+        message: 'Ошибка при отправке заявки. Попробуйте еще раз.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    name,
+    phone,
+    urlStartDate,
+    urlEndDate,
+    selectedStartDate,
+    selectedEndDate,
+    startDate,
+    endDate,
+    rentalDays,
+    includedMileage,
+    rentalPrice,
+    selectedOptionsList,
+    totalPrice,
+    deposit,
+    carGroup,
+    openModal,
+    formatDateForAPI,
+  ]);
 
   const carName = formatCarName(car);
-  const carImages = [
-    getCarImage(car, 0),
-    getCarImage(car, 1),
-    getCarImage(car, 2),
-    getCarImage(car, 3),
-  ].filter(Boolean);
+
+  // Get images from group media, fallback to car images
+  const carImages = useMemo(() => {
+    const groupImages = groupMedia
+      .filter((m) => m.type === 'image')
+      .map((m) => m.filePath);
+
+    if (groupImages.length > 0) {
+      return groupImages;
+    }
+
+    // Fallback to car images
+    return [
+      getCarImage(car, 0),
+      getCarImage(car, 1),
+      getCarImage(car, 2),
+      getCarImage(car, 3),
+    ].filter(Boolean);
+  }, [groupMedia, car]);
+
+  // Get video from group media
+  const groupVideo = useMemo(() => {
+    return groupMedia.find((m) => m.type === 'video');
+  }, [groupMedia]);
+
+  const handleVideoClick = () => {
+    if (groupVideo) {
+      setVideoUrl(groupVideo.filePath);
+      setIsVideoModalOpen(true);
+    }
+  };
 
   return (
     <MainTemplate headerAnimation={false} minHeight={true}>
@@ -353,13 +686,21 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
               >
                 {carImages.map((image, index) => (
                   <SwiperSlide key={index}>
-                    {index === 0 && (
-                      <div className="play">
+                    {index === 0 && groupVideo && (
+                      <div
+                        className="play"
+                        onClick={handleVideoClick}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <img src="/img/play-icon.svg" alt="" />
                         <span>Видео обзор машины</span>
                       </div>
                     )}
-                    <img src={image} alt={carName} />
+                    <img
+                      src={image}
+                      alt={carName}
+                      className="max-h-[600px] object-cover"
+                    />
                   </SwiperSlide>
                 ))}
               </Swiper>
@@ -507,7 +848,24 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
                       <span className="slider"></span>
                     </label>
                     <div className="texts">
-                      <h4>{option.name}</h4>
+                      <h4>
+                        {option.name}
+
+                        <Tooltip
+                          content={
+                            <div className="tooltip2">
+                              <h3>{option.name}</h3>
+                              <span>{option.tooltip}</span>
+                            </div>
+                          }
+                          placement="top"
+                          classNames={{
+                            content: 'px-4! py-1! max-w-[200px]!',
+                          }}
+                        >
+                          <img src="/img/tooltip-icon.svg" alt="" />
+                        </Tooltip>
+                      </h4>
                       <b>{option.price.toLocaleString('ru-RU')} ₽</b>
                     </div>
                   </div>
@@ -535,6 +893,15 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
                 <span>Аренда</span>
                 <b>{rentalPrice.toLocaleString('ru-RU')} ₽</b>
               </div>
+
+              {/* Display selected options */}
+              {selectedOptionsList.map((option) => (
+                <div key={option.id} className="sum-row">
+                  <span>{option.name}</span>
+                  <b>{option.price.toLocaleString('ru-RU')} ₽</b>
+                </div>
+              ))}
+
               <div className="sum-row">
                 <span>Депозит</span>
                 <b>{deposit.toLocaleString('ru-RU')} ₽</b>
@@ -551,11 +918,53 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
                 </div>
               </div>
 
-              <input type="text" placeholder="Введите имя" />
-              <input type="tel" placeholder="Введите номер телефона" />
+              <input
+                type="text"
+                placeholder="Введите имя"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isSubmitting}
+              />
+              <input
+                type="tel"
+                placeholder="Введите номер телефона"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={isSubmitting}
+              />
 
-              <button className="red-btn" onClick={handleBooking}>
-                Забронировать автомобиль
+              {submitStatus.type && (
+                <div
+                  className={`submit-status ${
+                    submitStatus.type === 'success' ? 'success' : 'error'
+                  }`}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    marginBottom: '12px',
+                    backgroundColor:
+                      submitStatus.type === 'success' ? '#d4edda' : '#f8d7da',
+                    color:
+                      submitStatus.type === 'success' ? '#155724' : '#721c24',
+                    border: `1px solid ${
+                      submitStatus.type === 'success' ? '#c3e6cb' : '#f5c6cb'
+                    }`,
+                  }}
+                >
+                  {submitStatus.message}
+                </div>
+              )}
+
+              <button
+                className="red-btn"
+                onClick={handleBooking}
+                disabled={isSubmitting}
+                style={{
+                  opacity: isSubmitting ? 0.6 : 1,
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isSubmitting ? 'Отправка...' : 'Забронировать автомобиль'}
               </button>
 
               <p className="note">
@@ -567,6 +976,102 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
           </div>
         </div>
       </div>
+
+      {/* Video Modal */}
+      {isVideoModalOpen && videoUrl && (
+        <div
+          className="fixed inset-0 bg-black/50 bg-opacity-90 z-[3000] flex items-center justify-center p-4"
+          onClick={() => setIsVideoModalOpen(false)}
+          style={{
+            backdropFilter: 'blur(8px)',
+            animation: 'fadeIn 0.3s ease-out',
+          }}
+        >
+          <div
+            className="relative max-w-6xl w-full bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              boxShadow:
+                '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+              animation: 'scaleIn 0.3s ease-out',
+            }}
+          >
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
+                  <i className="fas fa-play text-white text-sm"></i>
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold text-lg">
+                    Видео обзор машины
+                  </h3>
+                  <p className="text-gray-400 text-xs">Просмотр видео</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsVideoModalOpen(false)}
+                className="w-12 h-12 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90 border border-white border-opacity-20"
+                aria-label="Закрыть"
+              >
+                <i className="fas fa-times text-black text-xl"></i>
+              </button>
+            </div>
+
+            {/* Video Container */}
+            <div className="relative w-full bg-black">
+              <video
+                src={videoUrl}
+                className="w-full h-auto max-h-[85vh] object-contain"
+                controls
+                autoPlay
+                style={{
+                  minHeight: '400px',
+                }}
+              />
+
+              {/* Decorative gradient overlay */}
+              <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
+            </div>
+
+            {/* Footer */}
+            <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/80 to-transparent px-6 py-4">
+              <div className="flex items-center justify-center gap-2 text-gray-400 text-sm">
+                <i className="fas fa-info-circle"></i>
+                <span>Нажмите вне видео для закрытия</span>
+              </div>
+            </div>
+
+            {/* Decorative corners */}
+            <div className="absolute top-0 left-0 w-20 h-20 border-t-4 border-l-4 border-red-600 opacity-50"></div>
+            <div className="absolute top-0 right-0 w-20 h-20 border-t-4 border-r-4 border-red-600 opacity-50"></div>
+            <div className="absolute bottom-0 left-0 w-20 h-20 border-b-4 border-l-4 border-red-600 opacity-50"></div>
+            <div className="absolute bottom-0 right-0 w-20 h-20 border-b-4 border-r-4 border-red-600 opacity-50"></div>
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </MainTemplate>
   );
 }

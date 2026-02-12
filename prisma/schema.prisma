@@ -6,3 +6,62 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("user") // "user" or "admin"
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model CarGroupMedia {
+  id          String   @id @default(uuid())
+  groupKey    String   // The key used to group cars (e.g., "BMW X5")
+  type        String   // "image" or "video"
+  fileName    String
+  filePath    String   // Path relative to public folder
+  fileSize    Int      // Size in bytes
+  mimeType    String
+  order       Int      @default(0) // For ordering images/videos
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([groupKey])
+  @@map("car_group_media")
+}
+
+model TelegramChat {
+  id          String   @id @default(uuid())
+  chatId      String   @unique // Telegram chat ID
+  chatType    String   @default("private") // "private" or "group"
+  firstName   String?
+  lastName    String?
+  username    String?
+  title       String?  // For groups/channels
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("telegram_chats")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  name      String
+  image     String?  // Path to image file (optional)
+  rating    Int      // Rating from 1 to 5
+  text      String   @db.Text
+  isActive  Boolean  @default(true) // To show/hide reviews
+  order     Int      @default(0) // For ordering reviews
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reviews")
+}

@@ -23,6 +23,185 @@
   content: '\f00d';
 }
 
+/* Admin Panel Icons */
+.fa-dashboard:before,
+.fa-chart-line:before {
+  content: '\f201';
+}
+
+.fa-users:before {
+  content: '\f0c0';
+}
+
+.fa-user-plus:before {
+  content: '\f234';
+}
+
+.fa-list:before {
+  content: '\f03a';
+}
+
+.fa-gear:before,
+.fa-cog:before {
+  content: '\f013';
+}
+
+.fa-chevron-left:before {
+  content: '\f053';
+}
+
+.fa-chevron-right:before {
+  content: '\f054';
+}
+
+.fa-chart-bar:before {
+  content: '\f080';
+}
+
+.fa-user:before {
+  content: '\f007';
+}
+
+.fa-table:before {
+  content: '\f0ce';
+}
+
+.fa-star:before {
+  content: '\f005';
+}
+
+.fa-shield-halved:before {
+  content: '\f3ed';
+}
+
+.fa-user-shield:before {
+  content: '\f505';
+}
+
+.fa-bolt:before {
+  content: '\f0e7';
+}
+
+.fa-user-tag:before {
+  content: '\f507';
+}
+
+.fa-at:before {
+  content: '\0040';
+}
+
+.fa-hashtag:before {
+  content: '\23';
+}
+
+.fa-calendar:before {
+  content: '\f133';
+}
+
+.fa-envelope:before {
+  content: '\f0e0';
+}
+
+.fa-exclamation-circle:before {
+  content: '\f06a';
+}
+
+.fa-check-circle:before {
+  content: '\f058';
+}
+
+.fa-edit:before {
+  content: '\f044';
+}
+
+.fa-info-circle:before {
+  content: '\f05a';
+}
+
+.fa-lock:before {
+  content: '\f023';
+}
+
+.fa-key:before {
+  content: '\f084';
+}
+
+.fa-times:before {
+  content: '\f00d';
+}
+
+.fa-chevron-down:before {
+  content: '\f078';
+}
+
+.fa-car:before {
+  content: '\f1b9';
+}
+
+.fa-search:before {
+  content: '\f002';
+}
+
+.fa-filter:before {
+  content: '\f0b0';
+}
+
+.fa-sort:before {
+  content: '\f0dc';
+}
+
+.fa-palette:before {
+  content: '\f53f';
+}
+
+.fa-ruble-sign:before {
+  content: '\f158';
+}
+
+.fa-external-link-alt:before {
+  content: '\f35d';
+}
+
+.fa-cloud-upload-alt:before {
+  content: '\f382';
+}
+
+.fa-images:before {
+  content: '\f302';
+}
+
+.fa-trash:before {
+  content: '\f2ed';
+}
+
+.fa-paper-plane:before {
+  content: '\f1d8';
+}
+
+.fab.fa-telegram:before {
+  content: '\f2c6';
+}
+
+.fa-toggle-on:before {
+  content: '\f205';
+}
+
+.fa-toggle-off:before {
+  content: '\f204';
+}
+
+.fa-sync-alt:before {
+  content: '\f2f1';
+}
+
+.fa-exclamation-triangle:before {
+  content: '\f071';
+}
+
+.fa-sign-out-alt:before {
+  content: '\f2f5';
+}
+
 /*---------------------------------*/
 
 @font-face {

@@ -9,7 +9,8 @@ interface TimePickerProps {
 }
 
 const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
-  const [hours, setHours] = useState(14);
+  // Default to 10:00 (working hours) if no value provided
+  const [hours, setHours] = useState(10);
   const [minutes, setMinutes] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -19,10 +20,18 @@ const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
   useEffect(() => {
     if (value) {
       const [h, m] = value.split(':').map(Number);
-      setHours(h);
+      // Ensure hour is between 6-23 (working hours)
+      const validHour = h < 6 ? 6 : h;
+      setHours(validHour);
       setMinutes(m);
+      // If hour was invalid, update parent component
+      if (h < 6) {
+        onChange(
+          `${validHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+        );
+      }
     }
-  }, [value]);
+  }, [value, onChange]);
 
   useEffect(() => {
     if (isOpen) {
@@ -80,6 +89,10 @@ const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
   }, [isOpen]);
 
   const handleHourChange = (hour: number) => {
+    // Only allow hours from 6 to 23 (working hours)
+    if (hour < 6) {
+      return; // Prevent selection of hours 0-5
+    }
     setHours(hour);
     onChange(
       `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
@@ -102,7 +115,8 @@ const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
-  const hoursArray = Array.from({ length: 24 }, (_, i) => i);
+  // Only allow hours from 6 to 23 (working hours: 06:00 - 23:59)
+  const hoursArray = Array.from({ length: 18 }, (_, i) => i + 6); // 6, 7, 8, ..., 23
   const minutesArray = Array.from({ length: 60 }, (_, i) => i);
 
   return (
@@ -140,15 +154,25 @@ const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
               <div className="time-selector">
                 <div className="time-selector-label">Часы</div>
                 <div className="time-selector-scroll" ref={hourScrollRef}>
-                  {hoursArray.map((hour) => (
-                    <div
-                      key={hour}
-                      className={`time-option ${hours === hour ? 'active' : ''}`}
-                      onClick={() => handleHourChange(hour)}
-                    >
-                      {hour.toString().padStart(2, '0')}
-                    </div>
-                  ))}
+                  {hoursArray.map((hour) => {
+                    const isDisabled = hour < 6;
+                    return (
+                      <div
+                        key={hour}
+                        className={`time-option ${hours === hour ? 'active' : ''} ${
+                          isDisabled ? 'disabled' : ''
+                        }`}
+                        onClick={() => !isDisabled && handleHourChange(hour)}
+                        style={{
+                          opacity: isDisabled ? 0.4 : 1,
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          pointerEvents: isDisabled ? 'none' : 'auto',
+                        }}
+                      >
+                        {hour.toString().padStart(2, '0')}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

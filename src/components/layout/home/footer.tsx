@@ -13,13 +13,51 @@ function Footer({ minHeight = false }: FooterProps) {
     name: '',
     phone: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+  }>({ type: null, message: '' });
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted:', formData);
-    // Reset form
-    setFormData({ name: '', phone: '' });
+    setIsSubmitting(true);
+    setSubmitStatus({ type: null, message: '' });
+
+    try {
+      const response = await fetch('/api/telegram/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          message: 'Заявка с главной страницы',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка при отправке заявки');
+      }
+
+      setSubmitStatus({
+        type: 'success',
+        message: 'Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.',
+      });
+      // Reset form
+      setFormData({ name: '', phone: '' });
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+      setSubmitStatus({
+        type: 'error',
+        message: error.message || 'Произошла ошибка. Попробуйте позже.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,10 +98,40 @@ function Footer({ minHeight = false }: FooterProps) {
               onChange={handleChange}
               required
             />
-            <button type="submit" className="red-btn">
-              Оставить заявку на подбор
+            <button
+              type="submit"
+              className="red-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Отправка...' : 'Оставить заявку на подбор'}
             </button>
           </form>
+
+          {/* Status Messages */}
+          {submitStatus.type && (
+            <div
+              className={`submit-status ${
+                submitStatus.type === 'success' ? 'success' : 'error'
+              }`}
+              style={{
+                marginTop: '15px',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                backgroundColor:
+                  submitStatus.type === 'success'
+                    ? '#d4edda'
+                    : '#f8d7da',
+                color: submitStatus.type === 'success' ? '#155724' : '#721c24',
+                border: `1px solid ${
+                  submitStatus.type === 'success' ? '#c3e6cb' : '#f5c6cb'
+                }`,
+                fontSize: '14px',
+                textAlign: 'center',
+              }}
+            >
+              {submitStatus.message}
+            </div>
+          )}
           <p className="text">
             Оставляя заявку на нашем сайте, вы даете свое согласие на{' '}
             <Link href="/offer">обработку персональных данных</Link> и

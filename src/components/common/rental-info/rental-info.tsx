@@ -142,7 +142,15 @@ function RentalInfo({ car, rentalDays }: RentalInfoProps) {
         <div className="top-info">
           <span>
             Стоимость аренды + <b>3 000 ₽</b>
-            <img src="/img/tooltip-icon.svg" alt="" />
+            <Tooltip
+              content="Это стоимость дополнительных услуг, таких как страхование, мойка и т.д."
+              placement="top"
+              classNames={{
+                content: 'px-4! py-1!',
+              }}
+            >
+              <img src="/img/tooltip-icon.svg" alt="" />
+            </Tooltip>
           </span>
         </div>
         <div className="prices">
