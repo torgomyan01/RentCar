@@ -4,6 +4,17 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
+// Սերվերում cookie-ն պահելու համար: եթե NEXTAUTH_USE_SECURE_COOKIES=false,
+// ապա secure cookie չենք օգտագործում (օգտակար է HTTP կամ proxy-ի դեպքում)
+const useSecureCookiesEnv = process.env.NEXTAUTH_USE_SECURE_COOKIES;
+const forceInsecureCookies =
+  useSecureCookiesEnv === 'false' || useSecureCookiesEnv === '0';
+const isHttps =
+  process.env.NODE_ENV === 'production' ||
+  process.env.VERCEL === '1' ||
+  (process.env.NEXTAUTH_URL || '').startsWith('https://');
+const useSecureCookies = !forceInsecureCookies && isHttps;
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   pages: {
@@ -11,35 +22,17 @@ export const authOptions: NextAuthOptions = {
     signOut: '/admin/login',
     error: '/admin/login',
   },
-  // Cookie configuration for production (Vercel)
-  // NextAuth v4 automatically adds __Secure- prefix when secure is true
-  // and NEXTAUTH_URL starts with https://
-  useSecureCookies:
-    process.env.NODE_ENV === 'production' ||
-    process.env.VERCEL === '1' ||
-    (process.env.NEXTAUTH_URL || '').startsWith('https://'),
+  useSecureCookies,
   cookies: {
     sessionToken: {
-      // NextAuth v4: When secure is true and useSecureCookies is true,
-      // NextAuth automatically adds __Secure- prefix to cookie name
-      // But getServerSession reads cookies using the name specified here
-      // So we need to match what we set in adminLoginAction
-      name:
-        process.env.NODE_ENV === 'production' ||
-        process.env.VERCEL === '1' ||
-        (process.env.NEXTAUTH_URL || '').startsWith('https://')
-          ? '__Secure-next-auth.session-token'
-          : 'next-auth.session-token',
+      name: useSecureCookies
+        ? '__Secure-next-auth.session-token'
+        : 'next-auth.session-token',
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure:
-          process.env.NODE_ENV === 'production' ||
-          process.env.VERCEL === '1' ||
-          (process.env.NEXTAUTH_URL || '').startsWith('https://'),
-        // Don't set domain - let browser handle it automatically
-        // domain: undefined,
+        secure: useSecureCookies,
       },
     },
   },
@@ -70,7 +63,10 @@ export const authOptions: NextAuthOptions = {
             user = await prisma.user.findUnique({
               where: { username },
             });
-            console.log('[Auth] Database query result:', user ? 'User found' : 'User not found');
+            console.log(
+              '[Auth] Database query result:',
+              user ? 'User found' : 'User not found'
+            );
           } catch (dbError: any) {
             console.error('[Auth] Database error:', dbError);
             console.error('[Auth] Database error message:', dbError?.message);

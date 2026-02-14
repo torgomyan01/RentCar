@@ -37,7 +37,7 @@ export async function generateMetadata({
       'Автомобиль';
 
     return {
-      title: `Аренда ${carName} - ${car.year || ''}г.в | Нам по пути`,
+      title: `Аренда ${carName} - ${car.year || ''}г.в`,
       description: `Аренда автомобиля ${carName} ${car.year || ''} года выпуска. ${car.transmission || ''} коробка передач, ${car.fuel || ''} топливо.`,
     };
   } catch (error) {

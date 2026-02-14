@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from 'react';
 import RentModal from '@/components/common/rent-modal/rent-modal';
+import type { Car } from '@/lib/rentprog-api-server';
 
 interface RentModalContextType {
   openModal: (options?: RentModalOptions) => void;
@@ -18,6 +19,8 @@ interface RentModalContextType {
 interface RentModalOptions {
   initialStartDate?: Date;
   initialEndDate?: Date;
+  /** Ավտոմեքենա — եթե նշված է, մոդալում ցուցադրվում են կոնտակտային դաշտեր և ուղարկում Telegram */
+  car?: Car;
   onSave?: (
     startDate: Date,
     endDate: Date,
@@ -104,6 +107,7 @@ export const RentModalProvider = ({ children }: { children: ReactNode }) => {
         onSave={handleSave}
         initialStartDate={options?.initialStartDate}
         initialEndDate={options?.initialEndDate}
+        car={options?.car}
       />
     </RentModalContext.Provider>
   );

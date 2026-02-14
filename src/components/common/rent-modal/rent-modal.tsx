@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import TimePicker from '@/components/common/time-picker/time-picker';
+import type { Car } from '@/lib/rentprog-api-server';
+
+function formatCarName(car: Car): string {
+  if (car.car_name) return car.car_name;
+  const make = car.make || '';
+  const model = car.model || '';
+  return `${make} ${model}`.trim() || 'Автомобиль';
+}
 
 interface RentModalProps {
   isOpen: boolean;
@@ -14,6 +22,8 @@ interface RentModalProps {
   ) => void;
   initialStartDate?: Date;
   initialEndDate?: Date;
+  /** Եթե նշված է — ցուցադրել կոնտակտային դաշտեր և ուղարկել Telegram */
+  car?: Car;
 }
 
 const RentModal = ({
@@ -22,6 +32,7 @@ const RentModal = ({
   onSave,
   initialStartDate,
   initialEndDate,
+  car,
 }: RentModalProps) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -33,14 +44,26 @@ const RentModal = ({
   const [endTime, setEndTime] = useState('22:00');
   const [selectingStart, setSelectingStart] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
+  // Կոնտակտային դաշտեր (երբ car նշված է)
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [submitStatus, setSubmitStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Reset dates when modal opens - no pre-selection
     if (isOpen) {
       const now = new Date();
       setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
       setStartDate(null);
       setEndDate(null);
+      setContactName('');
+      setContactPhone('');
+      setContactMessage('');
+      setSubmitStatus(null);
     }
   }, [isOpen]);
 
@@ -169,24 +192,91 @@ const RentModal = ({
     );
   };
 
-  const handleSave = (e?: React.MouseEvent) => {
+  const handleSave = async (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
-    if (startDate && endDate && !isClosing) {
-      // Double check that dates are not in the past
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(endDate);
-      end.setHours(0, 0, 0, 0);
+    if (!startDate || !endDate || isClosing) return;
 
-      if (start >= today && end >= today) {
-        onSave(startDate, endDate, startTime, endTime);
-        handleClose(e);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    if (start < today || end < today) return;
+
+    // Եթե car նշված է — կոնտակտ + Telegram
+    if (car) {
+      const name = contactName.trim();
+      const phone = contactPhone.trim();
+      if (!name) {
+        setSubmitStatus({ type: 'error', message: 'Введите имя' });
+        return;
       }
+      if (!phone) {
+        setSubmitStatus({ type: 'error', message: 'Введите номер телефона' });
+        return;
+      }
+      setIsSubmitting(true);
+      setSubmitStatus(null);
+
+      const formatD = (d: Date) => {
+        const day = d.getDate().toString().padStart(2, '0');
+        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+      };
+      const periodText = `${formatD(startDate)} ${startTime} – ${formatD(endDate)} ${endTime}`;
+      const carName = formatCarName(car);
+      const message = `
+🚗 *Заявка на аренду автомобиля*
+
+*Автомобиль:* ${carName}
+${car.year ? `*Год:* ${car.year}` : ''}
+${car.color ? `*Цвет:* ${car.color}` : ''}
+
+📅 *Период аренды:* ${periodText}
+
+👤 *Клиент:*
+• Имя: ${name}
+• Телефон: ${phone}
+${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : ''}
+      `.trim();
+
+      try {
+        const response = await fetch('/api/telegram/send-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, message }),
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          setSubmitStatus({
+            type: 'success',
+            message: 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.',
+          });
+          setTimeout(() => handleClose(e), 1500);
+        } else {
+          setSubmitStatus({
+            type: 'error',
+            message: data.error || 'Ошибка при отправке. Попробуйте ещё раз.',
+          });
+        }
+      } catch (err: any) {
+        setSubmitStatus({
+          type: 'error',
+          message: err?.message || 'Ошибка при отправке заявки.',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
     }
+
+    onSave(startDate, endDate, startTime, endTime);
+    handleClose(e);
   };
 
   const formatDateRange = () => {
@@ -269,7 +359,23 @@ const RentModal = ({
           </svg>
         </button>
 
-        <h2 className="rent-title">ПЕРИОД АРЕНДЫ АВТОМОБИЛЯ</h2>
+        <h2 className="rent-title">
+          {car ? 'ЗАЯВКА НА АРЕНДУ АВТОМОБИЛЯ' : 'ПЕРИОД АРЕНДЫ АВТОМОБИЛЯ'}
+        </h2>
+        {car && (
+          <p
+            className="rent-subtitle"
+            style={{
+              marginTop: 4,
+              marginBottom: 12,
+              fontSize: 14,
+              opacity: 0.9,
+            }}
+          >
+            {formatCarName(car)}
+            {car.year ? `, ${car.year} г.` : ''}
+          </p>
+        )}
 
         <div className="rent-content">
           <div className="calendar">
@@ -399,25 +505,79 @@ const RentModal = ({
           </div>
         </div>
 
+        {car && (
+          <div className="modal-form">
+            <p className="rent-contact-title">Контактные данные</p>
+            <input
+              type="text"
+              name="name"
+              placeholder="Введите ваше имя"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <input
+              type="tel"
+              name="phone"
+              placeholder="Введите ваш номер телефона"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <textarea
+              name="message"
+              placeholder="Сообщение (необязательно)"
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
+              rows={2}
+              disabled={isSubmitting}
+            />
+            {submitStatus && (
+              <div className={`submit-status ${submitStatus.type}`}>
+                {submitStatus.message}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="rent-actions">
           <button
             className="btn border-btn"
             onClick={(e) => handleClose(e)}
             type="button"
+            disabled={isSubmitting}
           >
             Отмена
           </button>
           <button
             className="btn red-btn"
             onClick={handleSave}
-            disabled={!startDate || !endDate || isClosing}
+            disabled={
+              !startDate ||
+              !endDate ||
+              isClosing ||
+              isSubmitting ||
+              (!!car && (!contactName.trim() || !contactPhone.trim()))
+            }
             type="button"
             style={{
-              opacity: !startDate || !endDate ? 0.5 : 1,
-              cursor: !startDate || !endDate ? 'not-allowed' : 'pointer',
+              opacity:
+                !startDate ||
+                !endDate ||
+                (car && (!contactName.trim() || !contactPhone.trim()))
+                  ? 0.5
+                  : 1,
+              cursor:
+                !startDate || !endDate || isSubmitting
+                  ? 'not-allowed'
+                  : 'pointer',
             }}
           >
-            Сохранить
+            {isSubmitting
+              ? 'Отправка...'
+              : car
+                ? 'Отправить заявку'
+                : 'Сохранить'}
           </button>
         </div>
       </div>

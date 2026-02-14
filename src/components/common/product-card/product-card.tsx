@@ -1,7 +1,10 @@
+'use client';
+
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useRentModal } from '@/contexts/rent-modal-context';
 
 interface ProductCardProps {
   car: Car;
@@ -241,6 +244,7 @@ function getYearRange(cars: Car[] | undefined, currentCar: Car): string {
 
 function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
   const searchParams = useSearchParams();
+  const { openModal } = useRentModal();
 
   // Get all unique colors from cars array
   const allColors =
@@ -461,10 +465,17 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
         </>
       )}
 
-      <div className="buttons">
-        <a href="#" className="red-btn">
+      <div className="buttons gap-[10px]!">
+        <button
+          type="button"
+          className="red-btn text-[14px]!"
+          onClick={(e) => {
+            e.preventDefault();
+            openModal({ car });
+          }}
+        >
           Оставить заявку
-        </a>
+        </button>
         <Link href={productUrl} className="border-btn">
           Подробнее
         </Link>
