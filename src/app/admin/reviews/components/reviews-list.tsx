@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getServerImageUrl } from '@/lib/uploads';
 
 interface Review {
   id: string;
@@ -33,7 +34,7 @@ function ReviewAvatar({ image, name }: { image: string | null; name: string }) {
   if (hasImage) {
     return (
       <img
-        src={image}
+        src={getServerImageUrl(image)}
         alt={name}
         className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
         onError={() => setImageError(true)}

@@ -7,6 +7,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import type { Swiper as SwiperType } from 'swiper';
 import type { Review } from '@/app/actions/reviews';
+import { getServerImageUrl } from '@/lib/uploads';
 
 // Helper function to get initials from name
 const getInitials = (name: string): string => {
@@ -79,7 +80,10 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
                 <div className="top">
                   <div className="img-wrap">
                     {hasImage && review.image ? (
-                      <img src={review.image} alt={review.name} />
+                      <img
+                        src={getServerImageUrl(review.image)}
+                        alt={review.name}
+                      />
                     ) : (
                       <div
                         style={{

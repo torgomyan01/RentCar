@@ -1,11 +1,22 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Car } from '@/lib/rentprog-api-server';
 import ProductCard from '@/components/common/product-card/product-card';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import CatalogTabs from '@/components/common/catalog-tabs/catalog-tabs';
 import { SITE_URL } from '@/utils/consts';
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, delay: i * 0.04, ease: 'easeOut' as const },
+  }),
+  exit: { opacity: 0, y: -14, transition: { duration: 0.2 } },
+};
 
 interface CatalogBlockProps {
   initialCars: Car[];
@@ -107,20 +118,49 @@ function CatalogBlock({ initialCars }: CatalogBlockProps) {
           onTabChange={setActiveTabs}
         />
         <div className="found-tab-wrap">
-          {groupedCars.length > 0 ? (
-            groupedCars.map((carGroup, index) => (
-              <ProductCard
-                key={carGroup[0].id || carGroup[0].car_name || index}
-                car={carGroup[0]}
-                cars={carGroup}
-                index={index}
-              />
-            ))
-          ) : (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <p>Автомобили не найдены</p>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {groupedCars.length > 0 ? (
+              <motion.div
+                key={activeTabs.join(',')}
+                className="catalog-cards-grid"
+                style={{ display: 'contents' }}
+              >
+                {groupedCars.map((carGroup, index) => (
+                  <motion.div
+                    key={
+                      carGroup[0].id || carGroup[0].car_name || `group-${index}`
+                    }
+                    variants={itemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    custom={index}
+                  >
+                    <ProductCard
+                      car={carGroup[0]}
+                      cars={carGroup}
+                      index={index}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  gridColumn: '1 / -1',
+                }}
+              >
+                <p>Автомобили не найдены</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

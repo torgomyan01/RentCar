@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useRentModal } from '@/contexts/rent-modal-context';
+import { getServerImageUrl } from '@/lib/uploads';
 
 interface ProductCardProps {
   car: Car;
@@ -353,14 +354,39 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
     };
   }, [isTooltipOpen]);
 
-  // Use group media image if available, otherwise fallback to car image
-  const displayImage = groupMediaImage || getCarImage(car, index);
+  // Ցուցադրել միայն բազայում ավելացված նկարները; եթե չկա — դատարկ դաշտ + «Բեռնեք նկարները»
+  const hasDbImage = !!groupMediaImage;
 
   return (
     <div className="car-item">
       <div className="img-wrap">
         <Link href={productUrl} className="img">
-          <img src={displayImage} alt={formatCarName(car)} />
+          {hasDbImage ? (
+            <img
+              src={getServerImageUrl(groupMediaImage)}
+              alt={formatCarName(car)}
+            />
+          ) : (
+            <div
+              className="product-card-no-image !w-full h-[250px]!"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '200px',
+                background: 'rgba(0,0,0,0.04)',
+                color: '#666',
+                fontSize: '14px',
+                textAlign: 'center',
+                padding: '16px',
+              }}
+            >
+              <span style={{ marginBottom: 8, opacity: 0.8 }}>
+                Загрузите изображения
+              </span>
+            </div>
+          )}
         </Link>
 
         <div className="tooltip-icon" onClick={handleTooltipClick}>

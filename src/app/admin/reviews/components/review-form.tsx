@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getServerImageUrl } from '@/lib/uploads';
 
 interface Review {
   id: string;
@@ -229,7 +230,7 @@ export default function ReviewForm({ reviewId }: ReviewFormProps) {
                 {formData.image && formData.image.trim() !== '' ? (
                   <div className="relative">
                     <img
-                      src={formData.image}
+                      src={getServerImageUrl(formData.image)}
                       alt="Preview"
                       className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
                       onError={(e) => {

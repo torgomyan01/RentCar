@@ -13,6 +13,7 @@ import 'swiper/css/navigation';
 import 'swiper/css/thumbs';
 import { Tooltip } from '@heroui/react';
 import { useRentModal } from '@/contexts/rent-modal-context';
+import { getServerImageUrl } from '@/lib/uploads';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -657,7 +658,7 @@ ${pricingInfo}
 
   const handleVideoClick = () => {
     if (groupVideo) {
-      setVideoUrl(groupVideo.filePath);
+      setVideoUrl(getServerImageUrl(groupVideo.filePath));
       setIsVideoModalOpen(true);
     }
   };
@@ -697,7 +698,7 @@ ${pricingInfo}
                       </div>
                     )}
                     <img
-                      src={image}
+                      src={getServerImageUrl(image)}
                       alt={carName}
                       className="max-h-[600px] object-cover"
                     />
@@ -714,7 +715,7 @@ ${pricingInfo}
               >
                 {carImages.map((image, index) => (
                   <SwiperSlide key={index}>
-                    <img src={image} alt={carName} />
+                    <img src={getServerImageUrl(image)} alt={carName} />
                   </SwiperSlide>
                 ))}
               </Swiper>
@@ -1021,7 +1022,7 @@ ${pricingInfo}
             {/* Video Container */}
             <div className="relative w-full bg-black">
               <video
-                src={videoUrl}
+                src={getServerImageUrl(videoUrl)}
                 className="w-full h-auto max-h-[85vh] object-contain"
                 controls
                 autoPlay

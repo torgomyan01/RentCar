@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Car } from '@/lib/rentprog-api-server';
 import MediaUpload from './media-upload';
+import { getServerImageUrl } from '@/lib/uploads';
 
 interface CarsListProps {
   initialCars: Car[];
@@ -414,7 +415,9 @@ export default function CarsList({ initialCars }: CarsListProps) {
                       <div className="flex items-center gap-3">
                         {(firstCar.image || firstCar.avatar_url) && (
                           <img
-                            src={firstCar.image || firstCar.avatar_url}
+                            src={getServerImageUrl(
+                              firstCar.image || firstCar.avatar_url
+                            )}
                             alt={group.name}
                             className="w-16 h-16 object-cover rounded-lg border border-gray-200"
                             onError={(e) => {
@@ -582,7 +585,7 @@ export default function CarsList({ initialCars }: CarsListProps) {
                       <div className="flex items-start gap-3">
                         {(car.image || car.avatar_url) && (
                           <img
-                            src={car.image || car.avatar_url}
+                            src={getServerImageUrl(car.image || car.avatar_url)}
                             alt={car.car_name || 'Car'}
                             className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0"
                             onError={(e) => {
@@ -684,7 +687,7 @@ export default function CarsList({ initialCars }: CarsListProps) {
                         >
                           {media.type === 'image' ? (
                             <img
-                              src={media.filePath}
+                              src={getServerImageUrl(media.filePath)}
                               alt={media.fileName}
                               className="w-full h-48 object-cover"
                               onError={(e) => {
@@ -694,7 +697,7 @@ export default function CarsList({ initialCars }: CarsListProps) {
                             />
                           ) : (
                             <video
-                              src={media.filePath}
+                              src={getServerImageUrl(media.filePath)}
                               className="w-full h-48 object-cover"
                               controls
                             />
