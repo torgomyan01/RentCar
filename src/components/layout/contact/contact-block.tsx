@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 import Script from 'next/script';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
+import { useRentModal } from '@/contexts/rent-modal-context';
+import { useContactSettings } from '@/hooks/use-contact-settings';
 
 declare global {
   interface Window {
@@ -13,23 +15,28 @@ declare global {
 function ContactBlock() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInitialized = useRef(false);
+  const { openModal } = useRentModal();
+  const { settings, loading } = useContactSettings();
 
   const initMap = () => {
     if (!window.ymaps || !mapRef.current || mapInitialized.current) return;
+    const lat = settings.mapCenterLat;
+    const lng = settings.mapCenterLng;
+    const zoom = settings.mapZoom;
 
     window.ymaps.ready(() => {
       if (!mapRef.current || mapInitialized.current) return;
 
       const map = new window.ymaps.Map(mapRef.current, {
-        center: [55.751574, 37.573856],
-        zoom: 15,
+        center: [lat, lng],
+        zoom: zoom,
         controls: [],
       });
 
       map.behaviors.disable('scrollZoom');
 
       const placemark = new window.ymaps.Placemark(
-        [55.751574, 37.573856],
+        [lat, lng],
         {
           hintContent: 'Мы здесь',
           balloonContent: 'Наш офис',
@@ -48,10 +55,11 @@ function ContactBlock() {
   };
 
   useEffect(() => {
-    if (window.ymaps) {
+    if (window.ymaps && !loading) {
+      mapInitialized.current = false;
       initMap();
     }
-  }, []);
+  }, [loading, settings.mapCenterLat, settings.mapCenterLng, settings.mapZoom]);
 
   return (
     <>
@@ -69,12 +77,12 @@ function ContactBlock() {
           <div className="map-wrap">
             <div className="map-info">
               <span>Телефон:</span>
-              <a href="tel:+79005001010" className="phone">
-                +7 (900) 500‒10‒10
+              <a href={`tel:${settings.phone}`} className="phone">
+                {settings.phoneDisplay}
               </a>
               <div className="soc-btns">
                 <a
-                  href="https://wa.me/79857396760"
+                  href={settings.whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -82,7 +90,7 @@ function ContactBlock() {
                   Whatsapp
                 </a>
                 <a
-                  href="https://t.me/ArendaAutoMoscow"
+                  href={settings.telegramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -91,12 +99,16 @@ function ContactBlock() {
                 </a>
               </div>
               <span>Адрес:</span>
-              <b>г. Москва, ул. Удальцова, д. 36, эт. 3 ком 13-18</b>
+              <b>{settings.address}</b>
               <span>Почта:</span>
-              <b>Rentcar_info@gmail.com</b>
-              <a href="#" className="red-btn">
+              <b>{settings.email}</b>
+              <button
+                type="button"
+                className="red-btn"
+                onClick={() => openModal({ contactOnly: true })}
+              >
                 Оставить заявку
-              </a>
+              </button>
             </div>
             <div id="map" ref={mapRef}></div>
           </div>

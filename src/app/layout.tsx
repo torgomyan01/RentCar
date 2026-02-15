@@ -16,6 +16,7 @@ import { UiProviders } from '@/components/common/UIProvider/ui-provider';
 import { RentModalProvider } from '@/contexts/rent-modal-context';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import CookieConsent from '@/components/common/cookie-consent/cookie-consent';
 
 const SITE_NAME = 'Нам по пути';
 const DEFAULT_DESCRIPTION =
@@ -85,6 +86,7 @@ export default async function RootLayout({
               <RentModalProvider>{children}</RentModalProvider>
             </UiProviders>
           </Providers>
+          <CookieConsent />
         </SesProviders>
       </body>
     </html>

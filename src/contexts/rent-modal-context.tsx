@@ -21,6 +21,8 @@ interface RentModalOptions {
   initialEndDate?: Date;
   /** Ավտոմեքենա — եթե նշված է, մոդալում ցուցադրվում են կոնտակտային դաշտեր և ուղարկում Telegram */
   car?: Car;
+  /** Միայն կոնտակտային ձև (օր. կոնտակտների էջ) — ցուցադրվում է միայն ձև, ուղարկում Telegram */
+  contactOnly?: boolean;
   onSave?: (
     startDate: Date,
     endDate: Date,
@@ -108,6 +110,7 @@ export const RentModalProvider = ({ children }: { children: ReactNode }) => {
         initialStartDate={options?.initialStartDate}
         initialEndDate={options?.initialEndDate}
         car={options?.car}
+        contactOnly={options?.contactOnly}
       />
     </RentModalContext.Provider>
   );

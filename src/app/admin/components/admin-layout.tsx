@@ -36,6 +36,11 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
       icon: 'fa-paper-plane',
     },
     {
+      label: 'Настройки',
+      href: '/admin/settings',
+      icon: 'fa-gear',
+    },
+    {
       label: 'Создать пользователя',
       href: '/admin/users/create',
       icon: 'fa-user-plus',

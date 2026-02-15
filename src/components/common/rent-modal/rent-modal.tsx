@@ -24,6 +24,8 @@ interface RentModalProps {
   initialEndDate?: Date;
   /** Եթե նշված է — ցուցադրել կոնտակտային դաշտեր և ուղարկել Telegram */
   car?: Car;
+  /** Միայն կոնտակտային ձև (կոնտակտների էջ) — առանց օրացույցի, ուղարկում Telegram */
+  contactOnly?: boolean;
 }
 
 const RentModal = ({
@@ -33,6 +35,7 @@ const RentModal = ({
   initialStartDate,
   initialEndDate,
   car,
+  contactOnly,
 }: RentModalProps) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -196,7 +199,61 @@ const RentModal = ({
     if (e) {
       e.stopPropagation();
     }
-    if (!startDate || !endDate || isClosing) return;
+    if (isClosing) return;
+
+    // contactOnly — միայն կոնտակտային ձև, ուղարկում Telegram (կոնտակտների էջ)
+    if (contactOnly) {
+      const name = contactName.trim();
+      const phone = contactPhone.trim();
+      if (!name) {
+        setSubmitStatus({ type: 'error', message: 'Введите имя' });
+        return;
+      }
+      if (!phone) {
+        setSubmitStatus({ type: 'error', message: 'Введите номер телефона' });
+        return;
+      }
+      setIsSubmitting(true);
+      setSubmitStatus(null);
+      const message = `
+📋 *Заявка с страницы контактов*
+
+👤 *Клиент:*
+• Имя: ${name}
+• Телефон: ${phone}
+${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : ''}
+      `.trim();
+      try {
+        const response = await fetch('/api/telegram/send-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, message }),
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          setSubmitStatus({
+            type: 'success',
+            message: 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.',
+          });
+          setTimeout(() => handleClose(e), 1500);
+        } else {
+          setSubmitStatus({
+            type: 'error',
+            message: data.error || 'Ошибка при отправке. Попробуйте ещё раз.',
+          });
+        }
+      } catch (err: any) {
+        setSubmitStatus({
+          type: 'error',
+          message: err?.message || 'Ошибка при отправке заявки.',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (!startDate || !endDate) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -360,7 +417,11 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
         </button>
 
         <h2 className="rent-title">
-          {car ? 'ЗАЯВКА НА АРЕНДУ АВТОМОБИЛЯ' : 'ПЕРИОД АРЕНДЫ АВТОМОБИЛЯ'}
+          {contactOnly
+            ? 'ОСТАВИТЬ ЗАЯВКУ'
+            : car
+              ? 'ЗАЯВКА НА АРЕНДУ АВТОМОБИЛЯ'
+              : 'ПЕРИОД АРЕНДЫ АВТОМОБИЛЯ'}
         </h2>
         {car && (
           <p
@@ -377,135 +438,137 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
           </p>
         )}
 
-        <div className="rent-content">
-          <div className="calendar">
-            <div className="calendar-range">
-              {formatDateRange() || 'Выберите период'}
-            </div>
+        {!contactOnly && (
+          <div className="rent-content">
+            <div className="calendar">
+              <div className="calendar-range">
+                {formatDateRange() || 'Выберите период'}
+              </div>
 
-            <div className="calendar-header">
-              <button
-                className="calendar-nav"
-                onClick={handlePrevMonth}
-                disabled={
-                  currentMonth.getFullYear() === new Date().getFullYear() &&
-                  currentMonth.getMonth() === new Date().getMonth()
-                }
-                style={{
-                  opacity:
+              <div className="calendar-header">
+                <button
+                  className="calendar-nav"
+                  onClick={handlePrevMonth}
+                  disabled={
                     currentMonth.getFullYear() === new Date().getFullYear() &&
                     currentMonth.getMonth() === new Date().getMonth()
-                      ? 0.4
-                      : 1,
-                  cursor:
-                    currentMonth.getFullYear() === new Date().getFullYear() &&
-                    currentMonth.getMonth() === new Date().getMonth()
-                      ? 'not-allowed'
-                      : 'pointer',
-                }}
-              >
-                ‹
-              </button>
-              <span>{getMonthName(currentMonth)}</span>
-              <button className="calendar-nav" onClick={handleNextMonth}>
-                ›
-              </button>
+                  }
+                  style={{
+                    opacity:
+                      currentMonth.getFullYear() === new Date().getFullYear() &&
+                      currentMonth.getMonth() === new Date().getMonth()
+                        ? 0.4
+                        : 1,
+                    cursor:
+                      currentMonth.getFullYear() === new Date().getFullYear() &&
+                      currentMonth.getMonth() === new Date().getMonth()
+                        ? 'not-allowed'
+                        : 'pointer',
+                  }}
+                >
+                  ‹
+                </button>
+                <span>{getMonthName(currentMonth)}</span>
+                <button className="calendar-nav" onClick={handleNextMonth}>
+                  ›
+                </button>
+              </div>
+
+              <div className="calendar-week">
+                {weekDays.map((day, idx) => (
+                  <span key={idx}>{day}</span>
+                ))}
+              </div>
+
+              <div className="calendar-grid">
+                {days.map((day, idx) => {
+                  const isMuted = isDateMuted(day);
+                  const isDisabled = isDateDisabled(day);
+                  const isSelected = isDateSelected(day);
+                  const isInRange = isDateInRange(day);
+
+                  // Determine background color based on state
+                  let backgroundColor = 'transparent';
+                  let color = undefined;
+
+                  if (isDisabled) {
+                    backgroundColor = 'rgba(200, 200, 200, 0.3)';
+                    color = '#888';
+                  } else if (isSelected || isInRange) {
+                    backgroundColor = '#ee132a'; // Red color for selected range
+                    color = '#fff'; // White text on red background
+                  }
+
+                  return (
+                    <span
+                      key={idx}
+                      className={`day ${isMuted ? 'muted' : ''} ${
+                        isDisabled ? 'disabled' : ''
+                      } ${isSelected || isInRange ? 'active' : ''} ${
+                        isSelected ? 'selected' : ''
+                      }`}
+                      onClick={() => handleDateClick(day)}
+                      style={{
+                        animationDelay: `${idx * 0.01}s`,
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isDisabled ? 0.5 : 1,
+                        pointerEvents: isDisabled ? 'none' : 'auto',
+                        backgroundColor,
+                        color,
+                        textDecoration: isDisabled ? 'line-through' : 'none',
+                        filter: isDisabled ? 'grayscale(100%)' : 'none',
+                      }}
+                    >
+                      {day.getDate()}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="calendar-week">
-              {weekDays.map((day, idx) => (
-                <span key={idx}>{day}</span>
-              ))}
-            </div>
+            <div className="rent-info">
+              <div className="field time-field relative z-100">
+                <TimePicker
+                  value={startTime}
+                  onChange={setStartTime}
+                  label="Время начала аренды"
+                />
+              </div>
 
-            <div className="calendar-grid">
-              {days.map((day, idx) => {
-                const isMuted = isDateMuted(day);
-                const isDisabled = isDateDisabled(day);
-                const isSelected = isDateSelected(day);
-                const isInRange = isDateInRange(day);
+              <div className="field time-field relative z-10">
+                <TimePicker
+                  value={endTime}
+                  onChange={setEndTime}
+                  label="Время окончания аренды"
+                />
+              </div>
 
-                // Determine background color based on state
-                let backgroundColor = 'transparent';
-                let color = undefined;
-
-                if (isDisabled) {
-                  backgroundColor = 'rgba(200, 200, 200, 0.3)';
-                  color = '#888';
-                } else if (isSelected || isInRange) {
-                  backgroundColor = '#ee132a'; // Red color for selected range
-                  color = '#fff'; // White text on red background
-                }
-
-                return (
-                  <span
-                    key={idx}
-                    className={`day ${isMuted ? 'muted' : ''} ${
-                      isDisabled ? 'disabled' : ''
-                    } ${isSelected || isInRange ? 'active' : ''} ${
-                      isSelected ? 'selected' : ''
-                    }`}
-                    onClick={() => handleDateClick(day)}
-                    style={{
-                      animationDelay: `${idx * 0.01}s`,
-                      cursor: isDisabled ? 'not-allowed' : 'pointer',
-                      opacity: isDisabled ? 0.5 : 1,
-                      pointerEvents: isDisabled ? 'none' : 'auto',
-                      backgroundColor,
-                      color,
-                      textDecoration: isDisabled ? 'line-through' : 'none',
-                      filter: isDisabled ? 'grayscale(100%)' : 'none',
-                    }}
-                  >
-                    {day.getDate()}
-                  </span>
-                );
-              })}
+              <div className="rent-note">
+                <p>
+                  За выдачу/прием автомобиля ранее или позднее взимается доп.
+                  плата
+                </p>
+                <div className="rent-fee">
+                  <span>9.00 – 18.00</span>
+                  <span className="border border-none!"></span>
+                  <span className="free">Без доплат</span>
+                </div>
+                <div className="rent-fee">
+                  <span>6.00 – 9.00</span>
+                  <span className="border border-none!"></span>
+                  <span className="paid">+ 2000 ₽</span>
+                </div>
+                <div className="rent-fee">
+                  <span>18.00 – 24.00</span>
+                  <span className="border border-none!"></span>
+                  <span className="paid">+ 2000 ₽</span>
+                </div>
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="rent-info">
-            <div className="field time-field relative z-100">
-              <TimePicker
-                value={startTime}
-                onChange={setStartTime}
-                label="Время начала аренды"
-              />
-            </div>
-
-            <div className="field time-field relative z-10">
-              <TimePicker
-                value={endTime}
-                onChange={setEndTime}
-                label="Время окончания аренды"
-              />
-            </div>
-
-            <div className="rent-note">
-              <p>
-                За выдачу/прием автомобиля ранее или позднее взимается доп.
-                плата
-              </p>
-              <div className="rent-fee">
-                <span>9.00 – 18.00</span>
-                <span className="border border-none!"></span>
-                <span className="free">Без доплат</span>
-              </div>
-              <div className="rent-fee">
-                <span>6.00 – 9.00</span>
-                <span className="border border-none!"></span>
-                <span className="paid">+ 2000 ₽</span>
-              </div>
-              <div className="rent-fee">
-                <span>18.00 – 24.00</span>
-                <span className="border border-none!"></span>
-                <span className="paid">+ 2000 ₽</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {car && (
+        {(car || contactOnly) && (
           <div className="modal-form">
             <p className="rent-contact-title">Контактные данные</p>
             <input
@@ -553,29 +616,37 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
             className="btn red-btn"
             onClick={handleSave}
             disabled={
-              !startDate ||
-              !endDate ||
               isClosing ||
               isSubmitting ||
-              (!!car && (!contactName.trim() || !contactPhone.trim()))
+              (contactOnly && (!contactName.trim() || !contactPhone.trim())) ||
+              (!contactOnly && (!startDate || !endDate)) ||
+              (!contactOnly &&
+                !!car &&
+                (!contactName.trim() || !contactPhone.trim()))
             }
             type="button"
             style={{
-              opacity:
-                !startDate ||
-                !endDate ||
-                (car && (!contactName.trim() || !contactPhone.trim()))
+              opacity: contactOnly
+                ? contactName.trim() && contactPhone.trim()
+                  ? 1
+                  : 0.5
+                : !startDate ||
+                    !endDate ||
+                    (car && (!contactName.trim() || !contactPhone.trim()))
                   ? 0.5
                   : 1,
               cursor:
-                !startDate || !endDate || isSubmitting
+                isSubmitting ||
+                (contactOnly &&
+                  (!contactName.trim() || !contactPhone.trim())) ||
+                (!contactOnly && (!startDate || !endDate))
                   ? 'not-allowed'
                   : 'pointer',
             }}
           >
             {isSubmitting
               ? 'Отправка...'
-              : car
+              : car || contactOnly
                 ? 'Отправить заявку'
                 : 'Сохранить'}
           </button>

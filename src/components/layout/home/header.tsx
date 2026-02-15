@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { SITE_URL } from '@/utils/consts';
+import { useContactSettings } from '@/hooks/use-contact-settings';
 import { rentprogApi } from '@/services/rentprog-api';
 import { useAppSelector } from '@/store/store';
 
@@ -28,6 +29,7 @@ function Header({
   headerConent = null,
 }: HeaderProps) {
   const { openModal } = useRentModal();
+  const { settings } = useContactSettings();
   const pathname = usePathname();
   const router = useRouter();
   const { cars, loading, error, lastFetched } = useAppSelector(
@@ -354,9 +356,9 @@ function Header({
               </ul>
               <div className="soc-icons">
                 {[
-                  { href: 'https://wa.me/79857396760', alt: 'Telegram' },
-                  { href: 'https://t.me/ArendaAutoMoscow', alt: 'WhatsApp' },
-                  { href: 'https://t.me/aaaallleeexxxx', alt: 'Telegram' },
+                  { href: settings.whatsappUrl, alt: 'WhatsApp' },
+                  { href: settings.telegramUrl, alt: 'Telegram' },
+                  { href: settings.telegramUrl2, alt: 'Telegram' },
                 ].map((social, index) => (
                   <motion.a
                     key={index}
@@ -387,10 +389,10 @@ function Header({
                   animate: 'visible',
                 })}
               >
-                <a href="tel:+79005001010" className="phone">
-                  +7 (900) 500-10-10
+                <a href={`tel:${settings.phone}`} className="phone">
+                  {settings.phoneDisplay}
                 </a>
-                <span>Работаем Пн-Сб с 9:00 до 21:00</span>
+                <span>{settings.workHours}</span>
               </motion.div>
             </div>
             <motion.div
@@ -402,21 +404,21 @@ function Header({
               })}
             >
               <a
-                href="https://t.me/ArendaAutoMoscow"
+                href={settings.telegramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <img src="/img/soc-icon1.svg" alt="Telegram" />
               </a>
               <a
-                href="https://wa.me/79857396760"
+                href={settings.whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <img src="/img/soc-icon2.svg" alt="WhatsApp" />
               </a>
               <a
-                href="https://t.me/aaaallleeexxxx"
+                href={settings.telegramUrl2}
                 target="_blank"
                 rel="noopener noreferrer"
               >

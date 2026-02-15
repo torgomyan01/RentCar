@@ -23,7 +23,7 @@ export default async function AdminDashboardPage() {
       value: '—',
       icon: 'fa-gear',
       gradient: 'from-pink-400 to-red-500',
-      href: '#',
+      href: '/admin/settings',
     },
     {
       title: 'Статистика',

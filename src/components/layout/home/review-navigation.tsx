@@ -62,7 +62,11 @@ export default function ReviewNavigation() {
           </svg>
         </button>
       </div>
-      <a href="#" className="red-btn">
+      <a
+        href="https://www.avito.ru/user/161dbd07ae97d22ff6581dcefb7ee1bf/profile?src=sharing"
+        className="red-btn"
+        target="_blank"
+      >
         Оставить отзыв
       </a>
     </div>
