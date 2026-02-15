@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -46,8 +46,26 @@ function Header({
   const [endTime, setEndTime] = useState('14:00');
   const [mileage, setMileage] = useState('');
   const [count, setCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const countRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(countRef, { once: true, margin: '-100px' });
+
+  // Փակել մոբայլ մենյուն երբ route-ը փոխվի
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Մոբայլ մենյու բաց থাকելիս body scroll-ը արգելել
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     if (isInView) {
@@ -320,7 +338,18 @@ function Header({
             >
               <img src="/img/logo.svg" alt="" />
             </motion.a>
-            <div className="menu-wrap">
+            <div
+              className={clsx('menu-wrap', mobileMenuOpen && 'open')}
+              data-open={mobileMenuOpen}
+            >
+              <button
+                type="button"
+                className="menu-close-btn"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Փակել մենյու"
+              >
+                <span aria-hidden>×</span>
+              </button>
               <ul className="main-menu">
                 {menuItems.map((item, index) => {
                   const isActive = pathname === item.href;
@@ -339,6 +368,7 @@ function Header({
                         <a
                           href={item.href}
                           className={isActive ? 'active' : ''}
+                          onClick={() => setMobileMenuOpen(false)}
                         >
                           {item.label}
                         </a>
@@ -346,6 +376,7 @@ function Header({
                         <Link
                           href={item.href}
                           className={isActive ? 'active' : ''}
+                          onClick={() => setMobileMenuOpen(false)}
                         >
                           {item.label}
                         </Link>
@@ -425,18 +456,36 @@ function Header({
                 <img src="/img/soc-icon3.svg" alt="Telegram" />
               </a>
             </motion.div>
-            <motion.div
-              className="drop-menu"
+            <motion.button
+              type="button"
+              className={clsx('drop-menu', mobileMenuOpen && 'is-active')}
               variants={dropMenuVariants}
               {...(headerAnimation && {
                 initial: 'hidden',
                 animate: 'visible',
               })}
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              aria-label={mobileMenuOpen ? 'Փակել մենյու' : 'Բացել մենյու'}
+              aria-expanded={mobileMenuOpen}
             >
               <span className="line"></span>
               <span className="line"></span>
               <span className="line"></span>
-            </motion.div>
+            </motion.button>
+
+            <AnimatePresence>
+              {mobileMenuOpen && (
+                <motion.div
+                  className="header-menu-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-hidden="true"
+                />
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </motion.header>
