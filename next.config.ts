@@ -12,7 +12,9 @@ const nextConfig = {
   },
   experimental: {
     esmExternals: true,
-    serverActions: {},
+    serverActions: {
+      bodySizeLimit: '25mb', // մեդիա բեռնում (վիդեո/նկար) — 413-ը հիմնականում nginx-ից է, տես docs/nginx-upload-size.md
+    },
   },
   env: {
     // NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
