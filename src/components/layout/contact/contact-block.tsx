@@ -74,8 +74,8 @@ function ContactBlock() {
             items={[{ label: 'Главная', href: '/' }, { label: 'Контакты' }]}
           />
           <h1>Контакты</h1>
-          <div className="map-wrap">
-            <div className="map-info">
+          <div className="map-wrap overflow-hidden">
+            <div className="map-info overflow-hidden">
               <span>Телефон:</span>
               <a href={`tel:${settings.phone}`} className="phone">
                 {settings.phoneDisplay}

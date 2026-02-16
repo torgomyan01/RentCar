@@ -45,7 +45,8 @@ function Footer({ minHeight = false }: FooterProps) {
 
       setSubmitStatus({
         type: 'success',
-        message: 'Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.',
+        message:
+          'Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.',
       });
       // Reset form
       setFormData({ name: '', phone: '' });
@@ -98,11 +99,7 @@ function Footer({ minHeight = false }: FooterProps) {
               onChange={handleChange}
               required
             />
-            <button
-              type="submit"
-              className="red-btn"
-              disabled={isSubmitting}
-            >
+            <button type="submit" className="red-btn" disabled={isSubmitting}>
               {isSubmitting ? 'Отправка...' : 'Оставить заявку на подбор'}
             </button>
           </form>
@@ -118,9 +115,7 @@ function Footer({ minHeight = false }: FooterProps) {
                 padding: '12px 16px',
                 borderRadius: '8px',
                 backgroundColor:
-                  submitStatus.type === 'success'
-                    ? '#d4edda'
-                    : '#f8d7da',
+                  submitStatus.type === 'success' ? '#d4edda' : '#f8d7da',
                 color: submitStatus.type === 'success' ? '#155724' : '#721c24',
                 border: `1px solid ${
                   submitStatus.type === 'success' ? '#c3e6cb' : '#f5c6cb'
@@ -149,7 +144,12 @@ function Footer({ minHeight = false }: FooterProps) {
           <Link href="/privacy" className="footer-link">
             Политика конфиденциальности
           </Link>
-          <img src="/img/avito-logo.svg" alt="Avito" />
+          <Link
+            href="http://avito.ru/user/161dbd07ae97d22ff6581dcefb7ee1bf/profile?src=sharing"
+            target="_blank"
+          >
+            <img src="/img/avito-logo.svg" alt="Avito" />
+          </Link>
         </div>
       </div>
     </footer>

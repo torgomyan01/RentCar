@@ -166,16 +166,49 @@ h1.full-text {
         width: 100%;
         margin: 0 auto;
         margin-top: 24px;
-        a {
-          align-items: center;
-          display: flex;
-          justify-content: center;
-        }
       }
-      a {
+      a,
+      button {
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        transition:
+          background-color 0.25s ease,
+          border-color 0.25s ease,
+          color 0.25s ease,
+          box-shadow 0.25s ease;
         @media (max-width: 767px) {
           font-size: 12px;
           padding: 12px 18px;
+          min-height: 48px;
+        }
+      }
+      button {
+        cursor: pointer;
+        font-family: inherit;
+      }
+      // Թաբեր: ակտիվ — կարմիր, ոչ ակտիվ — մոխրագույն, առանց hover
+      button.red-btn {
+        background: #ee132a;
+        border-color: #ee132a;
+        color: #fff;
+        &:hover {
+          background: #ee132a;
+          border-color: #ee132a;
+          color: #fff;
+        }
+      }
+      button.border-btn {
+        background: #e8e8e8;
+        border-color: #d0d0d0;
+        color: #6b6b6b;
+        box-shadow: none;
+        &:hover {
+          background: #e8e8e8;
+          border-color: #d0d0d0;
+          color: #6b6b6b;
         }
       }
     }

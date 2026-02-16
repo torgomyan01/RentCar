@@ -435,21 +435,21 @@ function Header({
               })}
             >
               <a
-                href={settings.telegramUrl}
+                href={settings.whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <img src="/img/soc-icon1.svg" alt="Telegram" />
               </a>
               <a
-                href={settings.whatsappUrl}
+                href={settings.telegramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <img src="/img/soc-icon2.svg" alt="WhatsApp" />
               </a>
               <a
-                href={settings.telegramUrl2}
+                href={`tel: ${settings.phoneDisplay}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

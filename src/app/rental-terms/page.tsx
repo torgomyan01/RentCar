@@ -1,6 +1,7 @@
 import MainTemplate from '@/components/common/main-template/main-template';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import FaqBlock from '@/components/layout/home/faq-block';
+import DocumentsTabs from './components/documents-tabs';
 
 export default function RentalTermsPage() {
   return (
@@ -48,65 +49,7 @@ export default function RentalTermsPage() {
         </div>
       </div>
 
-      <div className="necessary-documents">
-        <div className="container">
-          <div className="top-info">
-            <div className="texts">
-              <div className="global-title-wrap">
-                <h2>необходимые документы</h2>
-                <div className="text-style">
-                  <img src="/img/style-icon.png" alt="" />
-                  <span>Документы</span>
-                </div>
-              </div>
-              <p className="text">
-                Адрес постоянной регистрации и место фактического проживания не
-                имеют значения. Оплата аренды автомобиля возможна наличным,
-                безналичным расчетом и банковскими картами. Прописка в Москве и
-                Московской области не требуется
-              </p>
-            </div>
-            <div className="buttons">
-              <a href="#" className="red-btn">
-                Для физических лиц
-              </a>
-              <a href="#" className="border-btn">
-                Для юридических лиц
-              </a>
-            </div>
-          </div>
-          <div className="documents-items">
-            <div className="documents-item">
-              <span className="icon">
-                <img src="/img/documents-icon1.svg" alt="" />
-              </span>
-              <p>
-                Общегражданский паспорт. Обязательно наличие
-                постоянной/временной регистрации или выписки из отеля о
-                заселении
-              </p>
-            </div>
-            <div className="documents-item">
-              <span className="icon">
-                <img src="/img/documents-icon1.svg" alt="" />
-              </span>
-              <p>
-                Водительское удостоверение, действующее на территории Российской
-                Федерации
-              </p>
-            </div>
-            <div className="documents-item">
-              <span className="icon">
-                <img src="/img/documents-icon1.svg" alt="" />
-              </span>
-              <p>
-                Любой документ на выбор: ИНН, заграничный паспорт, военный
-                билет, СНИЛС
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DocumentsTabs />
 
       <div className="information-texts">
         <div className="container">

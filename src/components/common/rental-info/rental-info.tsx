@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Tooltip } from '@heroui/react';
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
 
@@ -91,6 +91,9 @@ function formatDaysText(days: number): string {
 }
 
 function RentalInfo({ car, rentalDays }: RentalInfoProps) {
+  const [tooltipMileageOpen, setTooltipMileageOpen] = useState(false);
+  const [tooltipExtraOpen, setTooltipExtraOpen] = useState(false);
+
   // Extract prices from car
   const prices = useMemo(() => extractPrices(car), [car]);
 
@@ -127,11 +130,23 @@ function RentalInfo({ car, rentalDays }: RentalInfoProps) {
             <Tooltip
               content={`Вы можете проехать максимум ${maxMileage} км согласно указанному количеству дней`}
               placement="top"
+              isOpen={tooltipMileageOpen}
+              onOpenChange={setTooltipMileageOpen}
               classNames={{
                 content: 'px-4! py-1!',
               }}
             >
-              <span className="black-text" style={{ cursor: 'help' }}>
+              <span
+                className="black-text"
+                style={{ cursor: 'help' }}
+                role="button"
+                tabIndex={0}
+                onClick={() => setTooltipMileageOpen((o) => !o)}
+                onKeyDown={(e) =>
+                  (e.key === 'Enter' || e.key === ' ') &&
+                  setTooltipMileageOpen((o) => !o)
+                }
+              >
                 {maxMileage} км
               </span>
             </Tooltip>
@@ -145,11 +160,24 @@ function RentalInfo({ car, rentalDays }: RentalInfoProps) {
             <Tooltip
               content="Это стоимость дополнительных услуг, таких как страхование, мойка и т.д."
               placement="top"
+              isOpen={tooltipExtraOpen}
+              onOpenChange={setTooltipExtraOpen}
               classNames={{
                 content: 'px-4! py-1!',
               }}
             >
-              <img src="/img/tooltip-icon.svg" alt="" />
+              <span
+                role="button"
+                tabIndex={0}
+                className="inline-flex cursor-pointer align-middle"
+                onClick={() => setTooltipExtraOpen((o) => !o)}
+                onKeyDown={(e) =>
+                  (e.key === 'Enter' || e.key === ' ') &&
+                  setTooltipExtraOpen((o) => !o)
+                }
+              >
+                <img src="/img/tooltip-icon.svg" alt="" />
+              </span>
             </Tooltip>
           </span>
         </div>

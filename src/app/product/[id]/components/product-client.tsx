@@ -670,7 +670,7 @@ ${pricingInfo}
           <Breadcrumbs
             items={[
               { label: 'Главная', href: '/' },
-              { label: 'Результаты поиска', href: '/search' },
+              { label: 'Каталог автомобилей', href: '/search' },
               { label: `Аренда ${carName} - ${car.year || ''}г.в` },
             ]}
             showBackButton={true}

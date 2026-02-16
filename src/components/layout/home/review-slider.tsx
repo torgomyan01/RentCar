@@ -8,6 +8,8 @@ import 'swiper/css/navigation';
 import type { Swiper as SwiperType } from 'swiper';
 import type { Review } from '@/app/actions/reviews';
 import { getServerImageUrl } from '@/lib/uploads';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Helper function to get initials from name
 const getInitials = (name: string): string => {
@@ -25,13 +27,24 @@ interface ReviewSliderProps {
 
 export default function ReviewSlider({ reviews }: ReviewSliderProps) {
   const swiperRef = useRef<SwiperType | null>(null);
+  const [modalReview, setModalReview] = useState<Review | null>(null);
 
   useEffect(() => {
-    // Update global ref when swiper is initialized
     if (swiperRef.current && typeof window !== 'undefined') {
       (window as any).reviewSwiperRef = swiperRef.current;
     }
   }, []);
+
+  useEffect(() => {
+    if (modalReview) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [modalReview]);
 
   if (!reviews || reviews.length === 0) {
     return null;
@@ -74,7 +87,7 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
         {reviews.map((review) => {
           const hasImage = review.image && review.image.trim() !== '';
           return (
-            <SwiperSlide>
+            <SwiperSlide key={review.id}>
               <div className="review-card">
                 <img src="/img/decor-img.svg" alt="" className="style" />
                 <div className="top">
@@ -122,14 +135,105 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
                   </div>
                 </div>
                 <p className="text">{review.text}</p>
-                <a href="#" className="read">
+                <button
+                  type="button"
+                  className="read"
+                  onClick={() => setModalReview(review)}
+                >
                   Читать полностью
-                </a>
+                </button>
               </div>
             </SwiperSlide>
           );
         })}
       </Swiper>
+
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {modalReview && (
+              <motion.div
+                key={modalReview.id}
+                className="review-full-modal-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setModalReview(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Отзыв полностью"
+              >
+                <motion.div
+                  className="review-full-modal"
+                  initial={{ opacity: 0, scale: 0.92, y: 12 }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    transition: {
+                      duration: 0.3,
+                      ease: [0.32, 0.72, 0, 1],
+                    },
+                  }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.96,
+                    y: 8,
+                    transition: { duration: 0.2 },
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="review-full-modal-close"
+                    onClick={() => setModalReview(null)}
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                  <div className="review-full-modal-content">
+                    <div className="top">
+                      <div className="img-wrap">
+                        {modalReview.image &&
+                        modalReview.image.trim() !== '' ? (
+                          <img
+                            src={getServerImageUrl(modalReview.image)}
+                            alt={modalReview.name}
+                          />
+                        ) : (
+                          <div className="review-full-modal-initials">
+                            {getInitials(modalReview.name)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="texts">
+                        <span className="name">{modalReview.name}</span>
+                        <div className="stars">
+                          {Array.from({ length: 5 }).map((_, index) => (
+                            <img
+                              key={index}
+                              src={
+                                index < modalReview.rating
+                                  ? '/img/star-red.svg'
+                                  : '/img/star-grey.svg'
+                              }
+                              alt=""
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="review-full-modal-text">
+                      {modalReview.text}
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
     </div>
   );
 }
