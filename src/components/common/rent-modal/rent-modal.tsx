@@ -430,6 +430,7 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
     const percent =
       ((minutes - TIME_RANGE_MINUTES) * 100) /
       (TIME_RANGE_MAX_MINUTES - TIME_RANGE_MINUTES);
+    const safeBadgeLeft = `clamp(36px, ${percent}%, calc(100% - 36px))`;
 
     return (
       <div className="time-range-picker">
@@ -446,8 +447,9 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
             style={{
               background: `linear-gradient(to right, #df3b33 0%, #df3b33 ${percent}%, #d9dde2 ${percent}%, #d9dde2 100%)`,
             }}
+            aria-label={label}
           />
-          <span className="time-range-badge" style={{ left: `${percent}%` }}>
+          <span className="time-range-badge" style={{ left: safeBadgeLeft }}>
             {minutesToClock(minutes)}
           </span>
         </div>

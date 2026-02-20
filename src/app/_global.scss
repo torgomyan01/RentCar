@@ -314,6 +314,7 @@ input::-webkit-inner-spin-button {
 }
 
 input[type='number'] {
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
@@ -2512,6 +2513,8 @@ a {
     outline: none;
     cursor: pointer;
     transition: filter 0.2s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 
     &:hover {
       filter: brightness(0.98);
@@ -2561,10 +2564,11 @@ a {
     font-size: 14px;
     font-weight: 500;
     line-height: 1;
-    padding: 8px 12px;
+    padding: 8px 20px;
     border-radius: 999px;
     white-space: nowrap;
     pointer-events: none;
+    z-index: 3;
   }
 
   .rent-note {

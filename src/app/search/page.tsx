@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import MainTemplate from '@/components/common/main-template/main-template';
 import SearchHeader from './components/search-header';
 import ProductCard from '@/components/common/product-card/product-card';
@@ -20,8 +20,11 @@ function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTabs, setActiveTabs] = useState<string[]>(['all']);
+  const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
+  const lastAutoScrollKeyRef = useRef('');
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const mileageParam = searchParams.get('mileage') || '';
   const requestedMileage = useMemo(
     () => parseMileageInput(searchParams.get('mileage')),
     [searchParams]
@@ -84,6 +87,25 @@ function SearchPage() {
 
     fetchCars();
   }, [startDate, endDate, allCars]);
+
+  useEffect(() => {
+    if (loading || !startDate || !endDate) return;
+
+    const searchKey = `${startDate}|${endDate}|${mileageParam}`;
+    if (lastAutoScrollKeyRef.current === searchKey) return;
+
+    const anchor = resultsAnchorRef.current;
+    if (!anchor) return;
+
+    lastAutoScrollKeyRef.current = searchKey;
+    requestAnimationFrame(() => {
+      const top = anchor.getBoundingClientRect().top + window.scrollY - 110;
+      window.scrollTo({
+        top: Math.max(top, 0),
+        behavior: 'smooth',
+      });
+    });
+  }, [loading, startDate, endDate, mileageParam]);
 
   // Group cars by model/name (same car, different colors and years)
   const getCarGroupKey = (car: Car): string => {
@@ -256,7 +278,7 @@ function SearchPage() {
     <MainTemplate headerAnimation={false} headerConent={<SearchHeader />}>
       <div className="catalog-wrap">
         <div className="container">
-          <div className="found">
+          <div className="found" id="search-results" ref={resultsAnchorRef}>
             <h3>найдено автомобилей</h3>
             <span className="num">{groupedCars.length}</span>
           </div>
