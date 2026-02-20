@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import TimePicker from '@/components/common/time-picker/time-picker';
 import type { Car } from '@/lib/rentprog-api-server';
+import {
+  EXTRA_TIME_FEE_RUB,
+  hasExtraTimeFee as hasExtraTimeFeeByBusinessHours,
+} from '@/lib/business-hours-fee';
 
 function formatCarName(car: Car): string {
   if (car.car_name) return car.car_name;
@@ -286,6 +290,7 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
       };
       const periodText = `${formatD(startDate)} ${startTime} – ${formatD(endDate)} ${endTime}`;
       const carName = formatCarName(car);
+      const hasExtraTimeFee = hasExtraTimeFeeByBusinessHours(startTime, endTime);
       const message = `
 🚗 *Заявка на аренду автомобиля*
 
@@ -294,6 +299,9 @@ ${car.year ? `*Год:* ${car.year}` : ''}
 ${car.color ? `*Цвет:* ${car.color}` : ''}
 
 📅 *Период аренды:* ${periodText}
+💼 *Нерабочее время:* ${
+        hasExtraTimeFee ? `да (+ ${EXTRA_TIME_FEE_RUB.toLocaleString('ru-RU')} ₽)` : 'нет'
+      }
 
 👤 *Клиент:*
 • Имя: ${name}
@@ -554,14 +562,14 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
                   <span className="free">Без доплат</span>
                 </div>
                 <div className="rent-fee">
-                  <span>6.00 – 9.00</span>
+                  <span>до 09.00</span>
                   <span className="border border-none!"></span>
-                  <span className="paid">+ 2000 ₽</span>
+                  <span className="paid">+ 3000 ₽</span>
                 </div>
                 <div className="rent-fee">
-                  <span>18.00 – 24.00</span>
+                  <span>после 18.00</span>
                   <span className="border border-none!"></span>
-                  <span className="paid">+ 2000 ₽</span>
+                  <span className="paid">+ 3000 ₽</span>
                 </div>
               </div>
             </div>

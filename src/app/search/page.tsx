@@ -10,6 +10,7 @@ import { getFreeCars } from '@/app/actions/cars';
 import type { Car } from '@/lib/rentprog-api-server';
 import { useAppSelector } from '@/store/store';
 import { useSearchParams } from 'next/navigation';
+import { hasExtraTimeFee as hasExtraTimeFeeByBusinessHours } from '@/lib/business-hours-fee';
 
 function SearchPage() {
   const searchParams = useSearchParams();
@@ -237,28 +238,7 @@ function SearchPage() {
   );
 
   const hasExtraTimeFee = useMemo(() => {
-    const parseTimeToMinutes = (dateTime?: string | null): number | null => {
-      if (!dateTime) return null;
-      const timePart = dateTime.trim().split(' ').pop() || '';
-      const match = timePart.match(/^(\d{1,2})[:.](\d{2})$/);
-      if (!match) return null;
-      const h = Number(match[1]);
-      const m = Number(match[2]);
-      if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-      if (h < 0 || h > 23 || m < 0 || m > 59) return null;
-      return h * 60 + m;
-    };
-
-    const startMinutes = parseTimeToMinutes(startDate);
-    const endMinutes = parseTimeToMinutes(endDate);
-    if (startMinutes === null || endMinutes === null) return false;
-
-    const businessStart = 9 * 60;
-    const businessEnd = 18 * 60;
-    const isOutside = (minutes: number) =>
-      minutes < businessStart || minutes > businessEnd;
-
-    return isOutside(startMinutes) || isOutside(endMinutes);
+    return hasExtraTimeFeeByBusinessHours(startDate, endDate);
   }, [startDate, endDate]);
 
   // Calculate included mileage (200 km per day)

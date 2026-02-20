@@ -23,6 +23,10 @@ import { useRentModal } from '@/contexts/rent-modal-context';
 import { getServerImageUrl } from '@/lib/uploads';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import {
+  EXTRA_TIME_FEE_RUB,
+  hasExtraTimeFee as hasExtraTimeFeeByBusinessHours,
+} from '@/lib/business-hours-fee';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -496,10 +500,16 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return maxDailyPrice * rentalDays;
   }, [maxDailyPrice, rentalDays]);
 
-  const totalPrice = rentalPrice + totalAdditionalPrice;
+  const hasExtraTimeFee = useMemo(() => {
+    return hasExtraTimeFeeByBusinessHours(startDate, endDate);
+  }, [startDate, endDate]);
+  const extraTimeFee = hasExtraTimeFee ? EXTRA_TIME_FEE_RUB : 0;
+
+  const totalPrice = rentalPrice + totalAdditionalPrice + extraTimeFee;
   const deposit = 5000;
   const finalTotalWithDeposit = totalPrice + deposit;
-  const oldTotalWithDeposit = oldRentalPrice + totalAdditionalPrice + deposit;
+  const oldTotalWithDeposit =
+    oldRentalPrice + totalAdditionalPrice + extraTimeFee + deposit;
 
   const handleOptionToggle = (optionId: string) => {
     const exclusiveOptions = new Set([
@@ -633,6 +643,9 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 💰 *Стоимость:*
 • Аренда: ${rentalPrice.toLocaleString('ru-RU')} ₽
 ${selectedOptionsText ? `• Дополнительные опции:\n${selectedOptionsText}` : ''}
+• Доплата за нерабочее время: ${
+        hasExtraTimeFee ? `+ ${EXTRA_TIME_FEE_RUB.toLocaleString('ru-RU')} ₽` : 'нет'
+      }
 • Депозит: ${deposit.toLocaleString('ru-RU')} ₽
 • Итого: ${totalPrice.toLocaleString('ru-RU')} ₽
       `.trim();
@@ -705,6 +718,7 @@ ${pricingInfo}
     selectedOptionsList,
     totalPrice,
     deposit,
+    hasExtraTimeFee,
     carGroup,
     openModal,
     formatDateForAPI,
@@ -1096,6 +1110,13 @@ ${pricingInfo}
                     <b>{option.price.toLocaleString('ru-RU')} ₽</b>
                   </motion.div>
                 ))}
+
+                {hasExtraTimeFee && (
+                  <div className="sum-row">
+                    <span>Нерабочее время</span>
+                    <b>+ {EXTRA_TIME_FEE_RUB.toLocaleString('ru-RU')} ₽</b>
+                  </div>
+                )}
 
                 <div className="sum-row">
                   <span>Депозит</span>
