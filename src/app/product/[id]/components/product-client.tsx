@@ -1,7 +1,15 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import MainTemplate from '@/components/common/main-template/main-template';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
@@ -93,6 +101,19 @@ function formatDriveUnit(drive: string | undefined): string {
   return driveMap[drive.toLowerCase()] || drive;
 }
 
+function extractSeatNumbers(
+  value: string | number | null | undefined
+): number[] {
+  if (value === undefined || value === null) return [];
+  if (typeof value === 'number' && Number.isFinite(value)) return [value];
+  if (typeof value === 'string') {
+    const matches = value.match(/\d+/g);
+    if (!matches) return [];
+    return matches.map((m) => Number(m)).filter((n) => Number.isFinite(n));
+  }
+  return [];
+}
+
 // Helper function to get color class name from color string
 function getColorClass(color: string | null | undefined): string {
   if (!color) return '';
@@ -172,32 +193,38 @@ interface ProductClientProps {
 }
 
 export default function ProductClient({ car, allCars }: ProductClientProps) {
-  const searchParams = useSearchParams();
   const { openModal } = useRentModal();
-  const urlStartDate = searchParams.get('start_date');
-  const urlEndDate = searchParams.get('end_date');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [mileage, setMileage] = useState('');
 
   // State for dates selected in modal (if not in URL)
   const [selectedStartDate, setSelectedStartDate] = useState<string | null>(
     null
   );
   const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
-  const [selectedStartTime, setSelectedStartTime] = useState<string>('14:00');
-  const [selectedEndTime, setSelectedEndTime] = useState<string>('22:00');
 
-  // Use URL dates if available, otherwise use selected dates from modal
-  const startDate = urlStartDate || selectedStartDate;
-  const endDate = urlEndDate || selectedEndDate;
+  const startDateFromQuery = searchParams.get('start_date');
+  const endDateFromQuery = searchParams.get('end_date');
+  const mileageFromQuery = searchParams.get('mileage');
+
+  // Use GET params first, fallback to dates selected in modal
+  const startDate = startDateFromQuery || selectedStartDate;
+  const endDate = endDateFromQuery || selectedEndDate;
+
+  useEffect(() => {
+    setMileage(mileageFromQuery || '');
+  }, [mileageFromQuery]);
 
   const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, boolean>
   >({
-    'peace-package': true,
-    casco: true,
+    'peace-package': false,
+    casco: false,
     'casco-no-franchise': false,
-    booster: true,
-    'child-seat': true,
+    booster: false,
+    'child-seat': false,
     'extra-driver': false,
   });
   const [groupMedia, setGroupMedia] = useState<
@@ -359,6 +386,23 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return `${minYear}-${maxYear}`;
   }, [carGroup]);
 
+  const seatsRange = useMemo(() => {
+    const values = Array.from(
+      new Set(
+        carGroup.flatMap((c) => [
+          ...extractSeatNumbers(
+            c.number_seats as string | number | null | undefined
+          ),
+          ...extractSeatNumbers(c.seats as string | number | null | undefined),
+        ])
+      )
+    ).sort((a, b) => a - b);
+
+    if (values.length === 0) return '—';
+    if (values.length === 1) return String(values[0]);
+    return `${values[0]} - ${values[values.length - 1]}`;
+  }, [carGroup]);
+
   const prices = useMemo(() => {
     return extractPrices(car);
   }, [car]);
@@ -441,14 +485,49 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return additionalOptions.filter((option) => selectedOptions[option.id]);
   }, [selectedOptions, additionalOptions]);
 
+  // Discount baseline: the most expensive daily tariff
+  const maxDailyPrice = useMemo(() => {
+    if (!prices || prices.length === 0) return 0;
+    return Math.max(...prices);
+  }, [prices]);
+
+  const oldRentalPrice = useMemo(() => {
+    if (!rentalDays || !maxDailyPrice) return 0;
+    return maxDailyPrice * rentalDays;
+  }, [maxDailyPrice, rentalDays]);
+
   const totalPrice = rentalPrice + totalAdditionalPrice;
   const deposit = 5000;
+  const finalTotalWithDeposit = totalPrice + deposit;
+  const oldTotalWithDeposit = oldRentalPrice + totalAdditionalPrice + deposit;
 
   const handleOptionToggle = (optionId: string) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [optionId]: !prev[optionId],
-    }));
+    const exclusiveOptions = new Set([
+      'peace-package',
+      'casco',
+      'casco-no-franchise',
+    ]);
+
+    setSelectedOptions((prev) => {
+      const nextValue = !prev[optionId];
+
+      // For "Пакет спокойствие / КАСКО / КАСКО без франшизы"
+      // allow only one active option at a time.
+      if (exclusiveOptions.has(optionId)) {
+        return {
+          ...prev,
+          'peace-package': false,
+          casco: false,
+          'casco-no-franchise': false,
+          [optionId]: nextValue,
+        };
+      }
+
+      return {
+        ...prev,
+        [optionId]: nextValue,
+      };
+    });
   };
 
   // Helper function to format date for API (DD-MM-YYYY H:mm)
@@ -478,8 +557,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     }
 
     // Check if dates are selected
-    const currentStartDate = urlStartDate || selectedStartDate;
-    const currentEndDate = urlEndDate || selectedEndDate;
+    const currentStartDate = startDate;
+    const currentEndDate = endDate;
 
     if (!currentStartDate || !currentEndDate) {
       // Open modal to select dates
@@ -499,8 +578,6 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 
           setSelectedStartDate(formattedStartDate);
           setSelectedEndDate(formattedEndDate);
-          setSelectedStartTime(newStartTime);
-          setSelectedEndTime(newEndTime);
 
           // After modal closes and state updates, trigger booking again
           setTimeout(() => {
@@ -618,8 +695,6 @@ ${pricingInfo}
   }, [
     name,
     phone,
-    urlStartDate,
-    urlEndDate,
     selectedStartDate,
     selectedEndDate,
     startDate,
@@ -684,6 +759,63 @@ ${pricingInfo}
       setVideoReady(false);
       setVideoUrl(getServerImageUrl(groupVideo.filePath));
       setIsVideoModalOpen(true);
+    }
+  };
+
+  const parseDateTimeForModal = (dateTime: string | null) => {
+    if (!dateTime) return null;
+    const [datePart, timePart = '09:00'] = dateTime.split(' ');
+    const [day, month, year] = datePart.split('-').map(Number);
+    if (!day || !month || !year) return null;
+    return {
+      date: new Date(year, month - 1, day),
+      time: timePart,
+    };
+  };
+
+  const handleFindCarsDateClick = () => {
+    const parsedStart = parseDateTimeForModal(startDate);
+    const parsedEnd = parseDateTimeForModal(endDate);
+
+    openModal({
+      initialStartDate: parsedStart?.date,
+      initialEndDate: parsedEnd?.date,
+      onSave: (
+        newStartDate: Date,
+        newEndDate: Date,
+        newStartTime: string,
+        newEndTime: string
+      ) => {
+        const formattedStartDate = formatDateForAPI(newStartDate, newStartTime);
+        const formattedEndDate = formatDateForAPI(newEndDate, newEndTime);
+
+        setSelectedStartDate(formattedStartDate);
+        setSelectedEndDate(formattedEndDate);
+      },
+    });
+  };
+
+  const handleFindCarsSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!startDate || !endDate) {
+      handleFindCarsDateClick();
+      return;
+    }
+
+    const query = new URLSearchParams({
+      start_date: startDate,
+      end_date: endDate,
+    });
+    if (mileage.trim()) {
+      query.set('mileage', mileage.trim());
+    }
+    router.push(`/search?${query.toString()}`);
+  };
+
+  const handleMileageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d+$/.test(value)) {
+      setMileage(value);
     }
   };
 
@@ -809,9 +941,7 @@ ${pricingInfo}
               </li>
               <li>
                 <span className="grey">Количество мест</span>
-                <span className="black">
-                  {car.seats || car.number_seats || '—'}
-                </span>
+                <span className="black">{seatsRange}</span>
               </li>
               <li>
                 <span className="grey">Привод</span>
@@ -861,183 +991,254 @@ ${pricingInfo}
             </div>
           </div>
 
-          <div className="rent-layout">
-            <div className="rent-options">
-              {startDate && endDate && (
-                <>
-                  <div className="row">
-                    <span>Дата:</span>
-                    <b>
-                      {formatDateDisplay(startDate)} –{' '}
-                      {formatDateDisplay(endDate)}
-                    </b>
-                  </div>
-
-                  <div className="row">
-                    <span>Количество суток</span>
-                    <b>{rentalDays} суток</b>
-                  </div>
-
-                  <div className="row">
-                    <span>Включенный километраж</span>
-                    <b>{includedMileage.toLocaleString('ru-RU')} км</b>
-                  </div>
-                </>
-              )}
-
-              <div className="row">
-                <span>Перепробег</span>
-                <b>
-                  {car.extra_mileage_price
-                    ? `${car.extra_mileage_price.toLocaleString('ru-RU')} ₽ / км`
-                    : '15 ₽ / км'}
-                </b>
-              </div>
-
-              <div className="options">
-                {additionalOptions.map((option) => (
-                  <div key={option.id} className="option">
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={selectedOptions[option.id]}
-                        onChange={() => handleOptionToggle(option.id)}
-                      />
-                      <span className="slider"></span>
-                    </label>
-                    <div className="texts">
-                      <h4>
-                        {option.name}
-
-                        <Tooltip
-                          content={
-                            <div className="tooltip2">
-                              <h3>{option.name}</h3>
-                              <span>{option.tooltip}</span>
-                            </div>
-                          }
-                          placement="top"
-                          classNames={{
-                            content: 'px-4! py-1! max-w-[200px]!',
-                          }}
-                        >
-                          <img src="/img/tooltip-icon.svg" alt="" />
-                        </Tooltip>
-                      </h4>
-                      <b>{option.price.toLocaleString('ru-RU')} ₽</b>
+          {startDate && endDate ? (
+            <div className="rent-layout">
+              <div className="rent-options">
+                {startDate && endDate && (
+                  <>
+                    <div className="row">
+                      <span>Дата:</span>
+                      <b>
+                        {formatDateDisplay(startDate)} –{' '}
+                        {formatDateDisplay(endDate)}
+                      </b>
                     </div>
-                  </div>
+
+                    <div className="row">
+                      <span>Количество суток</span>
+                      <b>{rentalDays} суток</b>
+                    </div>
+
+                    <div className="row">
+                      <span>Включенный километраж</span>
+                      <b>{includedMileage.toLocaleString('ru-RU')} км</b>
+                    </div>
+                  </>
+                )}
+
+                <div className="row">
+                  <span>Перепробег</span>
+                  <b>
+                    {car.extra_mileage_price
+                      ? `${car.extra_mileage_price.toLocaleString('ru-RU')} ₽ / км`
+                      : '15 ₽ / км'}
+                  </b>
+                </div>
+
+                <div className="options">
+                  {additionalOptions.map((option) => (
+                    <div key={option.id} className="option">
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={selectedOptions[option.id]}
+                          onChange={() => handleOptionToggle(option.id)}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                      <div className="texts">
+                        <h4>
+                          {option.name}
+
+                          <Tooltip
+                            content={
+                              <div className="tooltip2">
+                                <h3>{option.name}</h3>
+                                <span>{option.tooltip}</span>
+                              </div>
+                            }
+                            placement="top"
+                            classNames={{
+                              content: 'px-4! py-1! max-w-[200px]!',
+                            }}
+                          >
+                            <img src="/img/tooltip-icon.svg" alt="" />
+                          </Tooltip>
+                        </h4>
+                        <b>{option.price.toLocaleString('ru-RU')} ₽</b>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <ul className="rent-list-items">
+                  <li>
+                    <span>Возраст арендатора:</span>
+                    <b>от 25 лет</b>
+                  </li>
+                  <li>
+                    <span>Стаж вождения:</span>
+                    <b>от 3 лет</b>
+                  </li>
+                  <li>
+                    <span>Набор документов:</span>
+                    <b>Паспорт, водительское удостоверение, ИНН или СНИЛС</b>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rent-summary">
+                <div className="sum-row">
+                  <span>Аренда</span>
+                  <b>{rentalPrice.toLocaleString('ru-RU')} ₽</b>
+                </div>
+
+                {/* Display selected options */}
+                {selectedOptionsList.map((option, index) => (
+                  <motion.div
+                    key={option.id}
+                    className="sum-row"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <span>{option.name}</span>
+                    <b>{option.price.toLocaleString('ru-RU')} ₽</b>
+                  </motion.div>
                 ))}
-              </div>
 
-              <ul className="rent-list-items">
-                <li>
-                  <span>Возраст арендатора:</span>
-                  <b>от 25 лет</b>
-                </li>
-                <li>
-                  <span>Стаж вождения:</span>
-                  <b>от 3 лет</b>
-                </li>
-                <li>
-                  <span>Набор документов:</span>
-                  <b>Паспорт, водительское удостоверение, ИНН или СНИЛС</b>
-                </li>
-              </ul>
-            </div>
-
-            <div className="rent-summary">
-              <div className="sum-row">
-                <span>Аренда</span>
-                <b>{rentalPrice.toLocaleString('ru-RU')} ₽</b>
-              </div>
-
-              {/* Display selected options */}
-              {selectedOptionsList.map((option, index) => (
-                <motion.div
-                  key={option.id}
-                  className="sum-row"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  <span>{option.name}</span>
-                  <b>{option.price.toLocaleString('ru-RU')} ₽</b>
-                </motion.div>
-              ))}
-
-              <div className="sum-row">
-                <span>Депозит</span>
-                <b>{deposit.toLocaleString('ru-RU')} ₽</b>
-              </div>
-              <p className="totla-text">
-                Итоговая стоимость аренды автомобиля:
-              </p>
-              <div className="total">
-                <div className="old">
-                  {(totalPrice + deposit).toLocaleString('ru-RU')} ₽
+                <div className="sum-row">
+                  <span>Депозит</span>
+                  <b>{deposit.toLocaleString('ru-RU')} ₽</b>
                 </div>
-                <div className="new" id="totalPrice">
-                  {totalPrice.toLocaleString('ru-RU')} ₽
+                <p className="totla-text">
+                  Итоговая стоимость аренды автомобиля:
+                </p>
+                <div className="total">
+                  <div className="old">
+                    {oldTotalWithDeposit.toLocaleString('ru-RU')} ₽
+                  </div>
+                  <div className="new" id="totalPrice">
+                    {finalTotalWithDeposit.toLocaleString('ru-RU')} ₽
+                  </div>
                 </div>
-              </div>
 
-              <input
-                type="text"
-                placeholder="Введите имя"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isSubmitting}
-              />
-              <input
-                type="tel"
-                placeholder="Введите номер телефона"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={isSubmitting}
-              />
+                <input
+                  type="text"
+                  placeholder="Введите имя"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                <input
+                  type="tel"
+                  placeholder="Введите номер телефона"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={isSubmitting}
+                />
 
-              {submitStatus.type && (
-                <div
-                  className={`submit-status ${
-                    submitStatus.type === 'success' ? 'success' : 'error'
-                  }`}
+                {submitStatus.type && (
+                  <div
+                    className={`submit-status ${
+                      submitStatus.type === 'success' ? 'success' : 'error'
+                    }`}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      marginBottom: '12px',
+                      backgroundColor:
+                        submitStatus.type === 'success' ? '#d4edda' : '#f8d7da',
+                      color:
+                        submitStatus.type === 'success' ? '#155724' : '#721c24',
+                      border: `1px solid ${
+                        submitStatus.type === 'success' ? '#c3e6cb' : '#f5c6cb'
+                      }`,
+                    }}
+                  >
+                    {submitStatus.message}
+                  </div>
+                )}
+
+                <button
+                  className="red-btn"
+                  onClick={handleBooking}
+                  disabled={isSubmitting}
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    marginBottom: '12px',
-                    backgroundColor:
-                      submitStatus.type === 'success' ? '#d4edda' : '#f8d7da',
-                    color:
-                      submitStatus.type === 'success' ? '#155724' : '#721c24',
-                    border: `1px solid ${
-                      submitStatus.type === 'success' ? '#c3e6cb' : '#f5c6cb'
-                    }`,
+                    opacity: isSubmitting ? 0.6 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {submitStatus.message}
-                </div>
-              )}
+                  {isSubmitting ? 'Отправка...' : 'Забронировать автомобиль'}
+                </button>
 
-              <button
-                className="red-btn"
-                onClick={handleBooking}
-                disabled={isSubmitting}
-                style={{
-                  opacity: isSubmitting ? 0.6 : 1,
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isSubmitting ? 'Отправка...' : 'Забронировать автомобиль'}
-              </button>
-
-              <p className="note">
-                Оставляя заявку, вы даете согласие на обработку{' '}
-                <a href="/offer">персональных данных</a> и соглашаетесь с{' '}
-                <a href="/privacy">политикой конфиденциальности</a>
-              </p>
+                <p className="note">
+                  Оставляя заявку, вы даете согласие на обработку{' '}
+                  <a href="/offer">персональных данных</a> и соглашаетесь с{' '}
+                  <a href="/privacy">политикой конфиденциальности</a>
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="find-cars">
+              <h2>ознакомьтесь с тарифами на другие даты</h2>
+              <p>
+                Для ознакомления с тарифами на другие даты воспользуйтесь формой
+                подбора свободного авто
+              </p>
+              <form className="find-cars-form" onSubmit={handleFindCarsSubmit}>
+                <div className="input-wrap">
+                  <span>* Доступен с</span>
+                  <button
+                    type="button"
+                    className="date text-left"
+                    onClick={handleFindCarsDateClick}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {startDate
+                      ? formatDateDisplay(startDate)
+                      : 'Выберите дату и время'}
+                  </button>
+                </div>
+                <div className="input-wrap">
+                  <span>* Доступен до</span>
+                  <button
+                    type="button"
+                    className="date text-left"
+                    onClick={handleFindCarsDateClick}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {endDate
+                      ? formatDateDisplay(endDate)
+                      : 'Выберите дату и время'}
+                  </button>
+                </div>
+                <div className="input-wrap">
+                  <div className="top">
+                    <span>Пробег поездки</span>
+                    <a href="https://trace.ati.su/" target="_blank">
+                      Как рассчитать?
+                    </a>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Укажите пробег"
+                    value={mileage}
+                    onChange={handleMileageChange}
+                  />
+                  <span className="info-text">
+                    <img src="/img/info-icon.svg" alt="" />
+                    <span>Общий пробег влияет на стоимость поездки</span>
+                  </span>
+                </div>
+                <button className="red-btn" type="submit">
+                  Найти свободные авто
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       </div>
 

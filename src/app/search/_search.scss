@@ -4,6 +4,7 @@ h1.full-text {
 
 .breadcrumbs-wrap {
   &.style2 {
+    margin-top: 20px;
     .breadcrumbs {
       li {
         a {
@@ -997,11 +998,11 @@ h1.full-text {
       .date {
         height: 66px;
         border-radius: 50px;
-        border: 1px solid rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
 
         display: flex;
         align-items: center;
-        padding: 10px 30px;
+        padding: 10px 30px !important;
         font-size: 16px;
         color: #373737;
         cursor: pointer;

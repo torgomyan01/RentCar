@@ -22,7 +22,7 @@ function SearchHeader() {
           <span className="transition-all">Назад</span>
         </span>
       </div>
-      <h1 className="full-text">резльтаты поиска автомобилей</h1>
+      <h1 className="full-text">Результаты поиска автомобилей</h1>
     </>
   );
 }

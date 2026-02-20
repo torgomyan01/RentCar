@@ -1737,6 +1737,7 @@ a {
   .banner-info {
     text-align: center;
     .persons-wrap {
+      margin-top: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1846,10 +1847,10 @@ a {
         .date {
           height: 52px;
           border-radius: 50px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.3) !important;
           display: flex;
           align-items: center;
-          padding: 10px 30px;
+          padding: 10px 30px !important;
           font-size: 16px;
           color: white;
           cursor: pointer;

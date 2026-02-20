@@ -36,14 +36,18 @@ function Header({
     (state) => state.cars
   );
 
-  const [startDate, setStartDate] = useState<Date | null>(
-    new Date(2025, 10, 28) // November 28, 2025
-  );
-  const [endDate, setEndDate] = useState<Date | null>(
-    new Date(2025, 11, 12) // December 12, 2025
-  );
-  const [startTime, setStartTime] = useState('12:00');
-  const [endTime, setEndTime] = useState('14:00');
+  const [startDate, setStartDate] = useState<Date | null>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+  const [endDate, setEndDate] = useState<Date | null>(() => {
+    const now = new Date();
+    const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay;
+  });
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('09:00');
   const [mileage, setMileage] = useState('');
   const [count, setCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -144,19 +148,14 @@ function Header({
     const startDateFormatted = formatDateForAPI(startDate, startTime);
     const endDateFormatted = formatDateForAPI(endDate, endTime);
 
-    // Build query parameters
-    const params = new URLSearchParams({
+    const query = new URLSearchParams({
       start_date: startDateFormatted,
       end_date: endDateFormatted,
     });
-
-    // Add mileage if provided
-    if (mileage) {
-      params.append('mileage', mileage);
+    if (mileage.trim()) {
+      query.set('mileage', mileage.trim());
     }
-
-    // Redirect to search page with query parameters
-    router.push(`/search?${params.toString()}`);
+    router.push(`/search?${query.toString()}`);
   };
 
   // Empty variants when animation is disabled
@@ -603,7 +602,9 @@ function Header({
                       <>
                         <div className="top">
                           <span>{item.label}</span>
-                          <a href="#">Как рассчитать?</a>
+                          <a href="https://trace.ati.su/" target="_blank">
+                            Как рассчитать?
+                          </a>
                         </div>
                         <input
                           type="text"

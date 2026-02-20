@@ -3,9 +3,9 @@
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import { getServerImageUrl } from '@/lib/uploads';
+import { useSearchParams } from 'next/navigation';
 
 interface ProductCardProps {
   car: Car;
@@ -116,17 +116,34 @@ function getCarImage(car: Car, index: number): string {
   return placeholderImages[index % placeholderImages.length];
 }
 
-// Helper function to get number of seats
-function getSeats(car: Car): string {
-  // Use number_seats from API (can be string or number)
-  if (car.number_seats !== undefined && car.number_seats !== null) {
-    return String(car.number_seats);
+function extractSeatNumbers(value: string | number | null | undefined): number[] {
+  if (value === undefined || value === null) return [];
+  if (typeof value === 'number' && Number.isFinite(value)) return [value];
+  if (typeof value === 'string') {
+    const matches = value.match(/\d+/g);
+    if (!matches) return [];
+    return matches
+      .map((m) => Number(m))
+      .filter((n) => Number.isFinite(n));
   }
-  // Fallback to seats field
-  if (car.seats !== undefined && car.seats !== null) {
-    return String(car.seats);
-  }
-  return '—';
+  return [];
+}
+
+// Helper function to get seats from group (e.g. "8 - 9")
+function getSeats(cars: Car[] | undefined, currentCar: Car): string {
+  const source = cars && cars.length > 0 ? cars : [currentCar];
+  const values = Array.from(
+    new Set(
+      source.flatMap((c) => [
+        ...extractSeatNumbers(c.number_seats as string | number | null | undefined),
+        ...extractSeatNumbers(c.seats as string | number | null | undefined),
+      ])
+    )
+  ).sort((a, b) => a - b);
+
+  if (values.length === 0) return '—';
+  if (values.length === 1) return String(values[0]);
+  return `${values[0]} - ${values[values.length - 1]}`;
 }
 
 // Helper function to get engine power
@@ -243,20 +260,31 @@ function getYearRange(cars: Car[] | undefined, currentCar: Car): string {
   return `${minYear}-${maxYear}`;
 }
 
-function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
-  const searchParams = useSearchParams();
+function ProductCard({
+  car,
+  cars,
+  index,
+  yearRange: providedYearRange,
+  uniqueColors: providedUniqueColors,
+  otherInfo,
+}: ProductCardProps) {
   const { openModal } = useRentModal();
+  const searchParams = useSearchParams();
 
   // Get all unique colors from cars array
-  const allColors =
-    cars && cars.length > 1
+  const allColors = useMemo(() => {
+    if (providedUniqueColors && providedUniqueColors.length > 0) {
+      return providedUniqueColors;
+    }
+    return cars && cars.length > 1
       ? Array.from(new Set(cars.map((c) => c.color).filter(Boolean)))
       : car.color
         ? [car.color]
         : [];
+  }, [providedUniqueColors, cars, car.color]);
 
   // Get year range from cars array
-  const yearRange = getYearRange(cars, car);
+  const yearRange = providedYearRange || getYearRange(cars, car);
 
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -321,11 +349,18 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
     }
   }, [groupKey, fetchGroupMedia]);
 
-  // Build product URL with search params
   const productUrl = useMemo(() => {
-    const baseUrl = `/product/${car.id}`;
-    const params = searchParams.toString();
-    return params ? `${baseUrl}?${params}` : baseUrl;
+    const startDate = searchParams.get('start_date');
+    const endDate = searchParams.get('end_date');
+    const mileage = searchParams.get('mileage');
+
+    const query = new URLSearchParams();
+    if (startDate) query.set('start_date', startDate);
+    if (endDate) query.set('end_date', endDate);
+    if (mileage) query.set('mileage', mileage);
+
+    const queryString = query.toString();
+    return queryString ? `/product/${car.id}?${queryString}` : `/product/${car.id}`;
   }, [car.id, searchParams]);
 
   const handleTooltipClick = (e: React.MouseEvent) => {
@@ -353,6 +388,8 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isTooltipOpen]);
+
+  const seatsDisplay = useMemo(() => getSeats(cars, car), [cars, car]);
 
   // Ցուցադրել միայն բազայում ավելացված նկարները; եթե չկա — դատարկ դաշտ + «Բեռնեք նկարները»
   const hasDbImage = !!groupMediaImage;
@@ -426,7 +463,7 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
             </li>
             <li>
               <span className="grey">Количество мест</span>
-              <span className="black">{getSeats(car)}</span>
+              <span className="black">{seatsDisplay}</span>
             </li>
             {/* <li>
               <span className="grey">Количество дверей</span>
@@ -465,7 +502,7 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
       <ul className="list">
         <li>
           <span>Вместимость</span>
-          <b>{getSeats(car) !== '—' ? `${getSeats(car)} мест` : '—'}</b>
+          <b>{seatsDisplay !== '—' ? `${seatsDisplay} мест` : '—'}</b>
         </li>
         <li>
           <span>Коробка</span>

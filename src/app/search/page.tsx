@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
 import MainTemplate from '@/components/common/main-template/main-template';
 import SearchHeader from './components/search-header';
 import ProductCard from '@/components/common/product-card/product-card';
@@ -10,15 +9,15 @@ import RentalInfo from '@/components/common/rental-info/rental-info';
 import { getFreeCars } from '@/app/actions/cars';
 import type { Car } from '@/lib/rentprog-api-server';
 import { useAppSelector } from '@/store/store';
+import { useSearchParams } from 'next/navigation';
 
 function SearchPage() {
-  const { cars: allCars } = useAppSelector((state) => state.cars);
   const searchParams = useSearchParams();
+  const { cars: allCars } = useAppSelector((state) => state.cars);
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTabs, setActiveTabs] = useState<string[]>(['all']);
-
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
 
@@ -81,33 +80,33 @@ function SearchPage() {
   }, [startDate, endDate, allCars]);
 
   // Group cars by model/name (same car, different colors and years)
+  const getCarGroupKey = (car: Car): string => {
+    let key = '';
+    if (car.car_name) {
+      key = car.car_name.trim();
+      key = key.replace(/\s+\d{4}$/, '').trim();
+    } else {
+      const make = (car.make || '').trim();
+      const model = (car.model || '').trim();
+      key = `${make}_${model}`.trim();
+    }
+
+    if (!key && car.code) {
+      key = car.code.split('_')[0] || car.code;
+    }
+
+    if (!key && car.id) {
+      key = `car_${car.id}`;
+    }
+
+    return key;
+  };
+
   const groupCarsByModel = (cars: Car[]): Car[][] => {
     const grouped = new Map<string, Car[]>();
 
     cars.forEach((car) => {
-      // Create a unique key based on car name or make+model (WITHOUT year)
-      let key = '';
-      if (car.car_name) {
-        // Extract base name without year if present
-        key = car.car_name.trim();
-        // Remove year from car_name if it's at the end (e.g., "BMW X5 2020" -> "BMW X5")
-        key = key.replace(/\s+\d{4}$/, '').trim();
-      } else {
-        const make = (car.make || '').trim();
-        const model = (car.model || '').trim();
-        // Don't include year in key
-        key = `${make}_${model}`.trim();
-      }
-
-      // Fallback to code if available (without color/year suffix)
-      if (!key && car.code) {
-        key = car.code.split('_')[0] || car.code;
-      }
-
-      // Final fallback to ID
-      if (!key && car.id) {
-        key = `car_${car.id}`;
-      }
+      const key = getCarGroupKey(car);
 
       if (!grouped.has(key)) {
         grouped.set(key, []);
@@ -186,6 +185,17 @@ function SearchPage() {
     () => groupCarsByModel(filteredCars),
     [filteredCars]
   );
+  const allCarsByGroup = useMemo(() => {
+    const grouped = new Map<string, Car[]>();
+    allCars.forEach((car) => {
+      const key = getCarGroupKey(car);
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(car);
+    });
+    return grouped;
+  }, [allCars]);
 
   // Calculate number of days between start_date and end_date
   const calculateDays = (
@@ -226,6 +236,31 @@ function SearchPage() {
     [startDate, endDate]
   );
 
+  const hasExtraTimeFee = useMemo(() => {
+    const parseTimeToMinutes = (dateTime?: string | null): number | null => {
+      if (!dateTime) return null;
+      const timePart = dateTime.trim().split(' ').pop() || '';
+      const match = timePart.match(/^(\d{1,2})[:.](\d{2})$/);
+      if (!match) return null;
+      const h = Number(match[1]);
+      const m = Number(match[2]);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+      if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+      return h * 60 + m;
+    };
+
+    const startMinutes = parseTimeToMinutes(startDate);
+    const endMinutes = parseTimeToMinutes(endDate);
+    if (startMinutes === null || endMinutes === null) return false;
+
+    const businessStart = 9 * 60;
+    const businessEnd = 18 * 60;
+    const isOutside = (minutes: number) =>
+      minutes < businessStart || minutes > businessEnd;
+
+    return isOutside(startMinutes) || isOutside(endMinutes);
+  }, [startDate, endDate]);
+
   // Calculate included mileage (200 km per day)
   const includedMileage = useMemo(() => {
     const dailyMileageLimit = 200; // km per day
@@ -263,18 +298,25 @@ function SearchPage() {
                 {groupedCars.length > 0 ? (
                   groupedCars.map((carGroup, index) => {
                     const mainCar = carGroup[0];
+                    const groupKey = getCarGroupKey(mainCar);
+                    const fullCarGroup = allCarsByGroup.get(groupKey) || carGroup;
 
                     return (
                       <div key={mainCar.id || mainCar.car_name || index}>
                         <ProductCard
                           car={mainCar}
-                          cars={carGroup}
+                          cars={fullCarGroup}
                           index={index}
+                          yearRange={getYearRange(fullCarGroup)}
+                          uniqueColors={getUniqueColors(fullCarGroup)}
                           otherInfo={
                             <RentalInfo
                               car={mainCar}
                               rentalDays={rentalDays}
                               includedMileage={includedMileage}
+                              startDateTime={startDate}
+                              endDateTime={endDate}
+                              hasExtraTimeFee={hasExtraTimeFee}
                             />
                           }
                         />

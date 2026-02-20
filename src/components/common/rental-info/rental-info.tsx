@@ -8,6 +8,9 @@ interface RentalInfoProps {
   car: Car;
   rentalDays: number;
   includedMileage: number;
+  startDateTime?: string | null;
+  endDateTime?: string | null;
+  hasExtraTimeFee?: boolean;
 }
 
 // Helper function to extract prices array from car
@@ -90,7 +93,26 @@ function formatDaysText(days: number): string {
   }
 }
 
-function RentalInfo({ car, rentalDays }: RentalInfoProps) {
+function parseTimeToMinutes(dateTime?: string | null): number | null {
+  if (!dateTime) return null;
+  // Parse only time part (after space), support both 09:00 and 09.00
+  const timePart = dateTime.trim().split(' ').pop() || '';
+  const match = timePart.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function RentalInfo({
+  car,
+  rentalDays,
+  startDateTime,
+  endDateTime,
+  hasExtraTimeFee: hasExtraTimeFeeProp,
+}: RentalInfoProps) {
   const [tooltipMileageOpen, setTooltipMileageOpen] = useState(false);
   const [tooltipExtraOpen, setTooltipExtraOpen] = useState(false);
 
@@ -114,6 +136,23 @@ function RentalInfo({ car, rentalDays }: RentalInfoProps) {
     }
     return 0;
   }, [rentalDays, car.extra_mileage_km]);
+
+  const computedExtraTimeFee = useMemo(() => {
+    const startMinutes = parseTimeToMinutes(startDateTime);
+    const endMinutes = parseTimeToMinutes(endDateTime);
+
+    // Если время не распарсилось, доплату не показываем
+    if (startMinutes === null || endMinutes === null) return false;
+
+    const businessStart = 9 * 60; // 09:00
+    const businessEnd = 18 * 60; // 18:00
+    const isOutside = (minutes: number) =>
+      minutes < businessStart || minutes > businessEnd;
+
+    return isOutside(startMinutes) || isOutside(endMinutes);
+  }, [startDateTime, endDateTime]);
+
+  const hasExtraTimeFee = hasExtraTimeFeeProp ?? computedExtraTimeFee;
 
   return (
     <>
@@ -156,29 +195,35 @@ function RentalInfo({ car, rentalDays }: RentalInfoProps) {
       <div className="price-info">
         <div className="top-info">
           <span>
-            Стоимость аренды + <b>3 000 ₽</b>
-            <Tooltip
-              content="Это стоимость дополнительных услуг, таких как страхование, мойка и т.д."
-              placement="top"
-              isOpen={tooltipExtraOpen}
-              onOpenChange={setTooltipExtraOpen}
-              classNames={{
-                content: 'px-4! py-1!',
-              }}
-            >
-              <span
-                role="button"
-                tabIndex={0}
-                className="inline-flex cursor-pointer align-middle"
-                onClick={() => setTooltipExtraOpen((o) => !o)}
-                onKeyDown={(e) =>
-                  (e.key === 'Enter' || e.key === ' ') &&
-                  setTooltipExtraOpen((o) => !o)
-                }
-              >
-                <img src="/img/tooltip-icon.svg" alt="" />
-              </span>
-            </Tooltip>
+            Стоимость аренды
+            {hasExtraTimeFee && (
+              <>
+                {' '}
+                + <b>3 000 ₽</b>
+                <Tooltip
+                  content="Доплата применяется при времени выдачи/возврата вне интервала 09:00–18:00."
+                  placement="top"
+                  isOpen={tooltipExtraOpen}
+                  onOpenChange={setTooltipExtraOpen}
+                  classNames={{
+                    content: 'px-4! py-1!',
+                  }}
+                >
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="inline-flex cursor-pointer align-middle"
+                    onClick={() => setTooltipExtraOpen((o) => !o)}
+                    onKeyDown={(e) =>
+                      (e.key === 'Enter' || e.key === ' ') &&
+                      setTooltipExtraOpen((o) => !o)
+                    }
+                  >
+                    <img src="/img/tooltip-icon.svg" alt="" />
+                  </span>
+                </Tooltip>
+              </>
+            )}
           </span>
         </div>
         <div className="prices">

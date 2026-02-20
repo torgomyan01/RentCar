@@ -17,17 +17,29 @@ const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
   const hourScrollRef = useRef<HTMLDivElement>(null);
   const minuteScrollRef = useRef<HTMLDivElement>(null);
 
+  const normalizeMinuteToStep = (minute: number): number => {
+    const clamped = Math.max(0, Math.min(59, minute));
+    return Math.round(clamped / 5) * 5 === 60
+      ? 55
+      : Math.round(clamped / 5) * 5;
+  };
+
   useEffect(() => {
     if (value) {
       const [h, m] = value.split(':').map(Number);
       // Ensure hour is between 6-23 (working hours)
       const validHour = h < 6 ? 6 : h;
+      const validMinute = normalizeMinuteToStep(
+        Number.isFinite(m) ? m : 0
+      );
       setHours(validHour);
-      setMinutes(m);
-      // If hour was invalid, update parent component
-      if (h < 6) {
+      setMinutes(validMinute);
+      // If hour/minute was invalid, update parent component
+      if (h < 6 || m !== validMinute) {
         onChange(
-          `${validHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+          `${validHour.toString().padStart(2, '0')}:${validMinute
+            .toString()
+            .padStart(2, '0')}`
         );
       }
     }
@@ -117,7 +129,7 @@ const TimePicker = ({ value, onChange, label }: TimePickerProps) => {
 
   // Only allow hours from 6 to 23 (working hours: 06:00 - 23:59)
   const hoursArray = Array.from({ length: 18 }, (_, i) => i + 6); // 6, 7, 8, ..., 23
-  const minutesArray = Array.from({ length: 60 }, (_, i) => i);
+  const minutesArray = Array.from({ length: 12 }, (_, i) => i * 5);
 
   return (
     <div className="time-picker-wrapper" ref={containerRef}>
