@@ -1,4 +1,14 @@
 import MainTemplate from '@/components/common/main-template/main-template';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Политика конфиденциальности',
+  description:
+    'Политика конфиденциальности и обработки персональных данных пользователей сайта.',
+  alternates: {
+    canonical: '/privacy',
+  },
+};
 
 export default function PrivacyPage() {
   return (

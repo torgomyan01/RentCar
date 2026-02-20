@@ -2,6 +2,16 @@ import MainTemplate from '@/components/common/main-template/main-template';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import FaqBlock from '@/components/layout/home/faq-block';
 import DocumentsTabs from './components/documents-tabs';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Условия аренды',
+  description:
+    'Требования к арендатору, документы, залог, правила возврата и другие условия аренды автомобиля.',
+  alternates: {
+    canonical: '/rental-terms',
+  },
+};
 
 export default function RentalTermsPage() {
   return (

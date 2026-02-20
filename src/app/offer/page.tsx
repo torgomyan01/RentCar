@@ -1,4 +1,14 @@
 import MainTemplate from '@/components/common/main-template/main-template';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Соглашение об обработке персональных данных',
+  description:
+    'Публичное соглашение об обработке персональных данных и условиях использования сайта.',
+  alternates: {
+    canonical: '/offer',
+  },
+};
 
 export default function OfferPage() {
   return (

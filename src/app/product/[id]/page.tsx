@@ -39,6 +39,9 @@ export async function generateMetadata({
     return {
       title: `Аренда ${carName} - ${car.year || ''}г.в`,
       description: `Аренда автомобиля ${carName} ${car.year || ''} года выпуска. ${car.transmission || ''} коробка передач, ${car.fuel || ''} топливо.`,
+      alternates: {
+        canonical: `/product/${carId}`,
+      },
     };
   } catch (error) {
     return {

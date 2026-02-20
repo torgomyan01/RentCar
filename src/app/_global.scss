@@ -2565,11 +2565,6 @@ a {
     border-radius: 999px;
     white-space: nowrap;
     pointer-events: none;
-
-    @media (max-width: 767px) {
-      font-size: 28px;
-      padding: 7px 16px;
-    }
   }
 
   .rent-note {
