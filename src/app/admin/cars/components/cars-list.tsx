@@ -288,10 +288,10 @@ export default function CarsList({ initialCars }: CarsListProps) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full min-w-0">
       {/* Filters */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           {/* Search */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -362,9 +362,9 @@ export default function CarsList({ initialCars }: CarsListProps) {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
         {filteredGroups.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-8 sm:p-12 text-center">
             <i className="fas fa-car text-6xl text-gray-300 mb-4"></i>
             <p className="text-gray-500 text-lg">Автомобили не найдены</p>
           </div>

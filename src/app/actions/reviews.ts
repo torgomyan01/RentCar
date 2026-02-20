@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { getAvitoReviews } from '@/lib/avito-api';
 
 export interface Review {
   id: string;
@@ -14,21 +14,42 @@ export interface Review {
   updatedAt: Date;
 }
 
+function mapAvitoReviewToReview(
+  avito: {
+    id: number;
+    score: number;
+    text: string;
+    createdAt: number;
+    sender?: { name?: string } | null;
+    images?: { sizes?: { url: string }[] }[] | null;
+  },
+  order: number
+): Review {
+  const name = avito.sender?.name?.trim() || 'Покупатель';
+  const image =
+    avito.images?.[0]?.sizes?.[0]?.url ?? null;
+
+  return {
+    id: String(avito.id),
+    name,
+    image,
+    rating: avito.score,
+    text: avito.text ?? '',
+    isActive: true,
+    order,
+    createdAt: new Date(avito.createdAt * 1000),
+    updatedAt: new Date(avito.createdAt * 1000),
+  };
+}
+
 export async function getActiveReviews(): Promise<Review[]> {
   try {
-    const reviews = await prisma.review.findMany({
-      where: {
-        isActive: true,
-      },
-      orderBy: [
-        { order: 'asc' },
-        { createdAt: 'desc' },
-      ],
-    });
-
-    return reviews;
+    const { reviews: avitoReviews } = await getAvitoReviews(0, 50);
+    return avitoReviews.map((r, index) =>
+      mapAvitoReviewToReview(r, index)
+    );
   } catch (error) {
-    console.error('Error fetching reviews:', error);
+    console.error('Error fetching reviews from Avito:', error);
     return [];
   }
 }

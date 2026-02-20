@@ -75,27 +75,27 @@ export default function UsersList() {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
+    <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+      <table className="w-full border-collapse min-w-[640px]">
         <thead>
           <tr className="bg-gray-50 border-b-2 border-gray-200">
-            <th className="p-4 text-left font-bold text-gray-700">
-              <i className="fas fa-hashtag mr-2 text-gray-400"></i>ID
+            <th className="p-2 sm:p-4 text-left font-bold text-gray-700 text-xs sm:text-sm">
+              <i className="fas fa-hashtag mr-1 sm:mr-2 text-gray-400"></i>ID
             </th>
-            <th className="p-4 text-left font-bold text-gray-700">
-              <i className="fas fa-user mr-2 text-gray-400"></i>Имя
+            <th className="p-2 sm:p-4 text-left font-bold text-gray-700 text-xs sm:text-sm">
+              <i className="fas fa-user mr-1 sm:mr-2 text-gray-400"></i>Имя
             </th>
-            <th className="p-4 text-left font-bold text-gray-700">
-              <i className="fas fa-at mr-2 text-gray-400"></i>Логин
+            <th className="p-2 sm:p-4 text-left font-bold text-gray-700 text-xs sm:text-sm">
+              <i className="fas fa-at mr-1 sm:mr-2 text-gray-400"></i>Логин
             </th>
-            <th className="p-4 text-left font-bold text-gray-700">
-              <i className="fas fa-envelope mr-2 text-gray-400"></i>Email
+            <th className="p-2 sm:p-4 text-left font-bold text-gray-700 text-xs sm:text-sm">
+              <i className="fas fa-envelope mr-1 sm:mr-2 text-gray-400"></i>Email
             </th>
-            <th className="p-4 text-left font-bold text-gray-700">
-              <i className="fas fa-user-tag mr-2 text-gray-400"></i>Роль
+            <th className="p-2 sm:p-4 text-left font-bold text-gray-700 text-xs sm:text-sm">
+              <i className="fas fa-user-tag mr-1 sm:mr-2 text-gray-400"></i>Роль
             </th>
-            <th className="p-4 text-left font-bold text-gray-700">
-              <i className="fas fa-calendar mr-2 text-gray-400"></i>Дата
+            <th className="p-2 sm:p-4 text-left font-bold text-gray-700 text-xs sm:text-sm">
+              <i className="fas fa-calendar mr-1 sm:mr-2 text-gray-400"></i>Дата
               создания
             </th>
           </tr>
@@ -108,10 +108,10 @@ export default function UsersList() {
                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
               }`}
             >
-              <td className="p-4 text-sm text-gray-600 font-mono">
+              <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600 font-mono">
                 {user.id.substring(0, 8)}...
               </td>
-              <td className="p-4 text-sm text-gray-800">
+              <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-800">
                 {user.firstName || user.lastName ? (
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
@@ -129,11 +129,11 @@ export default function UsersList() {
                   <span className="text-gray-400">—</span>
                 )}
               </td>
-              <td className="p-4 text-sm text-gray-800 font-medium">
+              <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-800 font-medium">
                 {user.username}
               </td>
-              <td className="p-4 text-sm text-gray-600">{user.email}</td>
-              <td className="p-4 text-sm">
+              <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{user.email}</td>
+              <td className="p-2 sm:p-4 text-xs sm:text-sm">
                 <span
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
                     user.role === 'admin'
@@ -149,7 +149,7 @@ export default function UsersList() {
                   {user.role === 'admin' ? 'Администратор' : 'Пользователь'}
                 </span>
               </td>
-              <td className="p-4 text-sm text-gray-600">
+              <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">
                 {new Date(user.createdAt).toLocaleDateString('ru-RU', {
                   year: 'numeric',
                   month: '2-digit',

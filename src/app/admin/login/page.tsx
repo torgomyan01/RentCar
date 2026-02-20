@@ -48,46 +48,15 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f5f5f5',
-      }}
-    >
-      <div
-        style={{
-          background: 'white',
-          padding: '40px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          width: '100%',
-          maxWidth: '400px',
-        }}
-      >
-        <h1
-          style={{
-            marginBottom: '30px',
-            textAlign: 'center',
-            fontSize: '24px',
-            fontWeight: 'bold',
-          }}
-        >
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 sm:p-6">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6 sm:p-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-center mb-6 sm:mb-8">
           Вход в админ-панель
         </h1>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label
-              htmlFor="username"
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-              }}
-            >
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1.5">
               Логин
             </label>
             <input
@@ -96,25 +65,13 @@ export default function AdminLoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '16px',
-              }}
+              autoComplete="username"
+              className="w-full px-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
             />
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-              }}
-            >
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
               Пароль
             </label>
             <input
@@ -123,27 +80,13 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '16px',
-              }}
+              autoComplete="current-password"
+              className="w-full px-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
             />
           </div>
 
           {error && (
-            <div
-              style={{
-                marginBottom: '20px',
-                padding: '10px',
-                background: '#fee',
-                color: '#c33',
-                borderRadius: '4px',
-                fontSize: '14px',
-              }}
-            >
+            <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">
               {error}
             </div>
           )}
@@ -151,17 +94,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: loading ? '#ccc' : '#ee132a',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
+            className="w-full min-h-[48px] py-3 rounded-lg text-base font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors touch-manipulation"
           >
             {loading ? 'Вход...' : 'Войти'}
           </button>

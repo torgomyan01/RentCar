@@ -60,7 +60,7 @@ export default function MediaUpload({
       'video/x-msvideo',
     ];
 
-    const MAX_SIZE = 20 * 1024 * 1024; // 20MB
+    const MAX_SIZE = 30 * 1024 * 1024; // 30MB
 
     let imageCount = 0;
     let videoCount = 0;
@@ -68,7 +68,7 @@ export default function MediaUpload({
     Array.from(files).forEach((file) => {
       if (allowedImageTypes.includes(file.type)) {
         if (file.size > MAX_SIZE) {
-          errors.push(`${file.name}: превышает 20MB`);
+          errors.push(`${file.name}: превышает 30MB`);
           return;
         }
         imageCount++;
@@ -79,7 +79,7 @@ export default function MediaUpload({
         valid.push(file);
       } else if (allowedVideoTypes.includes(file.type)) {
         if (file.size > MAX_SIZE) {
-          errors.push(`${file.name}: превышает 20MB`);
+          errors.push(`${file.name}: превышает 30MB`);
           return;
         }
         videoCount++;
@@ -200,7 +200,7 @@ export default function MediaUpload({
             </button>
           </p>
           <p className="text-xs text-gray-500">
-            До 10 изображений и 1 видео (макс. 20MB каждый)
+            До 10 изображений и 1 видео (макс. 30MB каждый)
           </p>
         </div>
         <input

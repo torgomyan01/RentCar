@@ -6,8 +6,8 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB
-const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 const MAX_IMAGES_PER_GROUP = 10;
 const MAX_VIDEOS_PER_GROUP = 1;
 
@@ -66,7 +66,7 @@ export async function POST(
       if (ALLOWED_IMAGE_TYPES.includes(fileType)) {
         if (fileSize > MAX_IMAGE_SIZE) {
           return NextResponse.json(
-            { error: `Image ${file.name} exceeds 20MB limit` },
+            { error: `Image ${file.name} exceeds 30MB limit` },
             { status: 400 }
           );
         }
@@ -82,7 +82,7 @@ export async function POST(
       } else if (ALLOWED_VIDEO_TYPES.includes(fileType)) {
         if (fileSize > MAX_VIDEO_SIZE) {
           return NextResponse.json(
-            { error: `Video ${file.name} exceeds 20MB limit` },
+            { error: `Video ${file.name} exceeds 30MB limit` },
             { status: 400 }
           );
         }

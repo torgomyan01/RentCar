@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MainTemplate from '@/components/common/main-template/main-template';
-import SearchHeader from '@/app/search/components/search-header';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -14,6 +13,8 @@ import 'swiper/css/thumbs';
 import { Tooltip } from '@heroui/react';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import { getServerImageUrl } from '@/lib/uploads';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -210,7 +211,11 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   >([]);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
   const mediaFetchedRef = useRef<Set<string>>(new Set());
+  const [galleryLoaded, setGalleryLoaded] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [imageModalIndex, setImageModalIndex] = useState(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -648,7 +653,7 @@ ${pricingInfo}
       getCarImage(car, 1),
       getCarImage(car, 2),
       getCarImage(car, 3),
-    ].filter(Boolean);
+    ].filter((image) => !image.includes('rentprog'));
   }, [groupMedia, car]);
 
   // Get video from group media
@@ -656,8 +661,27 @@ ${pricingInfo}
     return groupMedia.find((m) => m.type === 'video');
   }, [groupMedia]);
 
+  // Սբռոս gallery loading при смене машины
+  useEffect(() => {
+    setGalleryLoaded(false);
+  }, [car?.id]);
+
+  // Если изображений нет — сразу считаем галерею «загруженной»
+  useEffect(() => {
+    if (carImages.length === 0) {
+      setGalleryLoaded(true);
+    }
+  }, [carImages.length]);
+
+  const handleGalleryImageLoad = useCallback(() => {
+    // Դարձնում ենք loaded արդեն առաջին հաջող բեռնվելուց հետո,
+    // որպեսզի չկախվենք Swiper-ի lazy-loading-ից.
+    setGalleryLoaded(true);
+  }, []);
+
   const handleVideoClick = () => {
     if (groupVideo) {
+      setVideoReady(false);
       setVideoUrl(getServerImageUrl(groupVideo.filePath));
       setIsVideoModalOpen(true);
     }
@@ -679,46 +703,79 @@ ${pricingInfo}
           <h1>Аренда {carName}</h1>
 
           <div className="slider-wrapper">
-            <div className="car-gallery">
-              <Swiper
-                modules={[Navigation, Thumbs]}
-                thumbs={{ swiper: thumbsSwiper }}
-                className="main-slider"
+            <div className="car-gallery relative min-lg:min-h-[400px]">
+              {!galleryLoaded && (
+                <div
+                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-[30px] bg-gray-100"
+                  aria-hidden="true"
+                >
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-red-600" />
+                  <span className="text-sm font-medium text-gray-600">
+                    Загрузка изображений...
+                  </span>
+                </div>
+              )}
+              <div
+                className={
+                  galleryLoaded
+                    ? 'opacity-100'
+                    : 'opacity-0 pointer-events-none'
+                }
+                style={{ transition: 'opacity 0.25s ease-out' }}
               >
-                {carImages.map((image, index) => (
-                  <SwiperSlide key={index}>
-                    {index === 0 && groupVideo && (
-                      <div
-                        className="play"
-                        onClick={handleVideoClick}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <img src="/img/play-icon.svg" alt="" />
-                        <span>Видео обзор машины</span>
-                      </div>
-                    )}
-                    <img
-                      src={getServerImageUrl(image)}
-                      alt={carName}
-                      className="max-h-[600px] object-cover"
-                    />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+                <Swiper
+                  modules={[Navigation, Thumbs]}
+                  thumbs={{ swiper: thumbsSwiper }}
+                  navigation
+                  className="main-slider"
+                >
+                  {carImages.map((image, index) => (
+                    <SwiperSlide key={index} className="h-full">
+                      {index === 0 && groupVideo && (
+                        <div
+                          className="play"
+                          onClick={handleVideoClick}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <img src="/img/play-icon.svg" alt="" />
+                          <span>Видео обзор машины</span>
+                        </div>
+                      )}
+                      <Image
+                        src={getServerImageUrl(image)}
+                        alt={carName}
+                        className="min-lg:min-h-[600px] object-cover rounded-[30px] cursor-zoom-in"
+                        width={761}
+                        height={600}
+                        onLoad={handleGalleryImageLoad}
+                        onClick={() => {
+                          setImageModalIndex(index);
+                          setIsImageModalOpen(true);
+                        }}
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
 
-              <Swiper
-                modules={[Navigation, Thumbs]}
-                onSwiper={setThumbsSwiper}
-                className="thumbs-slider"
-                spaceBetween={10}
-                slidesPerView={4}
-              >
-                {carImages.map((image, index) => (
-                  <SwiperSlide key={index}>
-                    <img src={getServerImageUrl(image)} alt={carName} />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+                <Swiper
+                  modules={[Navigation, Thumbs]}
+                  onSwiper={setThumbsSwiper}
+                  className="thumbs-slider"
+                  spaceBetween={10}
+                  slidesPerView={4}
+                >
+                  {carImages.map((image, index) => (
+                    <SwiperSlide key={index}>
+                      <Image
+                        src={getServerImageUrl(image)}
+                        alt={carName}
+                        width={200}
+                        height={150}
+                      />
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              </div>
             </div>
 
             <ul className="tooltip-list">
@@ -896,11 +953,17 @@ ${pricingInfo}
               </div>
 
               {/* Display selected options */}
-              {selectedOptionsList.map((option) => (
-                <div key={option.id} className="sum-row">
+              {selectedOptionsList.map((option, index) => (
+                <motion.div
+                  key={option.id}
+                  className="sum-row"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
                   <span>{option.name}</span>
                   <b>{option.price.toLocaleString('ru-RU')} ₽</b>
-                </div>
+                </motion.div>
               ))}
 
               <div className="sum-row">
@@ -978,6 +1041,85 @@ ${pricingInfo}
         </div>
       </div>
 
+      {/* Image Gallery Modal (full screen) */}
+      {isImageModalOpen && carImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-[2900] flex items-center justify-center p-4 bg-black/85"
+          onClick={() => setIsImageModalOpen(false)}
+          style={{
+            backdropFilter: 'blur(10px)',
+            animation: 'fadeIn 0.25s ease-out',
+          }}
+        >
+          <div
+            className="relative max-w-6xl w-full max-h-[90vh] bg-gradient-to-br from-gray-950 via-black to-gray-900 rounded-3xl overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.9)] border border-white/5"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              animation: 'scaleIn 0.25s ease-out',
+            }}
+          >
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/90 to-transparent px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/60">
+                  <i className="fas fa-image text-white text-xs sm:text-sm" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold text-sm sm:text-lg leading-tight">
+                    Галерея автомобиля
+                  </h3>
+                  <p className="text-gray-400 text-[11px] sm:text-xs">
+                    Кликните вне изображения, чтобы закрыть
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsImageModalOpen(false)}
+                className="w-9 h-9 sm:w-10 sm:h-10 bg-white/5 hover:bg-white/15 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90 border border-white/20 shadow-md"
+                aria-label="Закрыть галерею"
+              >
+                <i className="fas fa-times text-white text-base sm:text-lg" />
+              </button>
+            </div>
+
+            {/* Images Swiper */}
+            <div className="w-full h-full bg-black pt-14 sm:pt-16 pb-8 sm:pb-10 px-3 sm:px-6">
+              <Swiper
+                modules={[Navigation]}
+                navigation
+                initialSlide={imageModalIndex}
+                onSlideChange={(swiper) => {
+                  setImageModalIndex(swiper.realIndex);
+                }}
+                className="main-slider"
+              >
+                {carImages.map((image, index) => (
+                  <SwiperSlide key={index}>
+                    <div className="flex items-center justify-center w-full h-full">
+                      <Image
+                        src={getServerImageUrl(image)}
+                        alt={carName}
+                        width={1400}
+                        height={900}
+                        className="w-full h-auto max-h-[78vh] sm:max-h-[80vh] object-contain rounded-2xl shadow-[0_18px_60px_rgba(0,0,0,0.85)]"
+                      />
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+
+              {/* Counter bottom-left */}
+              <div className="absolute bottom-4 left-4 z-30 px-3 py-1.5 rounded-full bg-black/70 border border-white/10 text-[11px] sm:text-xs text-gray-200 flex items-center gap-2">
+                <i className="fas fa-images text-[10px] sm:text-xs text-red-400" />
+                <span>
+                  {imageModalIndex + 1} / {carImages.length}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Video Modal */}
       {isVideoModalOpen && videoUrl && (
         <div
@@ -1021,11 +1163,27 @@ ${pricingInfo}
 
             {/* Video Container */}
             <div className="relative w-full bg-black">
+              {/* Loading overlay while видео подготавливается */}
+              {!videoReady && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/60">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-400 border-t-red-600" />
+                  <span className="text-sm font-medium text-gray-200">
+                    Подготовка видео...
+                  </span>
+                </div>
+              )}
+
               <video
                 src={getServerImageUrl(videoUrl)}
-                className="w-full h-auto max-h-[85vh] object-contain"
+                className={`w-full h-auto max-h-[85vh] object-contain transition-opacity duration-200 ${
+                  videoReady ? 'opacity-100' : 'opacity-0'
+                }`}
                 controls
                 autoPlay
+                muted
+                playsInline
+                preload="auto"
+                onCanPlay={() => setVideoReady(true)}
                 style={{
                   minHeight: '400px',
                 }}

@@ -699,7 +699,9 @@ a {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
   &:hover {
     background: #ee132a;
     color: #fff;

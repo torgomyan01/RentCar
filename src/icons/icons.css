@@ -202,6 +202,10 @@
   content: '\f2f5';
 }
 
+.fa-bars:before {
+  content: '\f0c9';
+}
+
 /*---------------------------------*/
 
 @font-face {

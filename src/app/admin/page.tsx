@@ -3,6 +3,8 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import AdminLayout from './components/admin-layout';
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
+import { getAllCarsFull } from '@/app/actions/cars';
 
 export default async function AdminDashboardPage() {
   const session = await getServerSession(authOptions);
@@ -10,27 +12,54 @@ export default async function AdminDashboardPage() {
   if (!session || (session.user as any)?.role !== 'admin') {
     redirect('/admin/login');
   }
+
+  // Аналитика: БД + автомобили из RentProg API
+  const [totalUsers, adminUsers, totalChats, activeChats, totalReviews, cars] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { role: 'admin' } }),
+      prisma.telegramChat.count(),
+      prisma.telegramChat.count({ where: { isActive: true } }),
+      prisma.review.count().catch(() => 0),
+      getAllCarsFull().catch(() => []),
+    ]);
+
+  const carsCount = cars.length;
+  // Պատվերներ/заявки — в БД пока нет модели, показываем — (можно позже добавить таблицу заявок)
+  const ordersCount: number | null = null;
+
   const stats = [
     {
+      title: 'Автомобили',
+      value: String(carsCount),
+      icon: 'fa-car',
+      gradient: 'from-emerald-500 to-teal-600',
+      href: '/admin/cars',
+      description: 'Парк из RentProg',
+    },
+    {
       title: 'Пользователи',
-      value: '0',
+      value: String(totalUsers),
       icon: 'fa-users',
       gradient: 'from-indigo-500 to-purple-600',
       href: '/admin/users',
+      description: `Админов: ${adminUsers}`,
     },
     {
-      title: 'Настройки',
-      value: '—',
-      icon: 'fa-gear',
-      gradient: 'from-pink-400 to-red-500',
-      href: '/admin/settings',
+      title: 'Telegram чаты',
+      value: String(totalChats),
+      icon: 'fa-paper-plane',
+      gradient: 'from-sky-500 to-blue-600',
+      href: '/admin/telegram',
+      description: `Активных: ${activeChats}`,
     },
     {
-      title: 'Статистика',
-      value: '—',
-      icon: 'fa-chart-bar',
-      gradient: 'from-blue-400 to-cyan-400',
+      title: 'Отзывы (локальные)',
+      value: String(totalReviews),
+      icon: 'fa-star',
+      gradient: 'from-amber-400 to-orange-500',
       href: '#',
+      description: 'Старые отзывы из БД',
     },
   ];
 
@@ -38,24 +67,24 @@ export default async function AdminDashboardPage() {
     <AdminLayout
       username={(session.user as any)?.username || session.user?.email}
     >
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
                 Dashboard
               </h1>
-              <p className="text-gray-600">Добро пожаловать в админ-панель</p>
+              <p className="text-sm sm:text-base text-gray-600">Добро пожаловать в админ-панель</p>
             </div>
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg">
-              <i className="fas fa-user-shield text-white text-2xl"></i>
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg shrink-0">
+              <i className="fas fa-user-shield text-white text-xl sm:text-2xl"></i>
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {stats.map((stat, index) => (
             <Link
               key={index}
@@ -77,10 +106,9 @@ export default async function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="text-sm opacity-90 mt-2">
-                  {stat.title === 'Пользователи' &&
-                    'Управление пользователями системы'}
-                  {stat.title === 'Настройки' && 'Конфигурация системы'}
-                  {stat.title === 'Статистика' && 'Аналитика и отчеты'}
+                  {stat.description ||
+                    (stat.title === 'Пользователи' &&
+                      'Управление пользователями системы')}
                 </div>
               </div>
             </Link>
@@ -88,15 +116,15 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
             <i className="fas fa-bolt text-yellow-500"></i>
             Быстрые действия
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <Link
               href="/admin/users/create"
-              className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all duration-200 group"
+              className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all duration-200 group min-h-[72px] touch-manipulation"
             >
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center group-hover:bg-red-500 transition-colors">
                 <i className="fas fa-user-plus text-red-600 group-hover:text-white"></i>
@@ -112,7 +140,7 @@ export default async function AdminDashboardPage() {
             </Link>
             <Link
               href="/admin/users"
-              className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 group"
+              className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 group min-h-[72px] touch-manipulation"
             >
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-500 transition-colors">
                 <i className="fas fa-table text-blue-600 group-hover:text-white"></i>

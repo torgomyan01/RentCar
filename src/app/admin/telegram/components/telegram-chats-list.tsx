@@ -170,21 +170,20 @@ export default function TelegramChatsList() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full min-w-0">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-        <div className="flex items-center justify-between">
+      <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Список чатов</h2>
-            <p className="text-gray-600 text-sm mt-1">
-              Управление получателями уведомлений Telegram
-            </p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Список чатов</h2>
+            <p className="text-gray-600 text-xs sm:text-sm mt-1">Управление получателями уведомлений Telegram</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <button
+              type="button"
               onClick={handleSyncChats}
               disabled={syncing}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:bg-gray-400"
+              className="min-h-[44px] px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 touch-manipulation text-sm sm:text-base"
             >
               {syncing ? (
                 <>
@@ -199,8 +198,9 @@ export default function TelegramChatsList() {
               )}
             </button>
             <button
+              type="button"
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+              className="min-h-[44px] px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 touch-manipulation text-sm sm:text-base"
             >
               <i className="fas fa-plus"></i>
               Добавить вручную
@@ -211,7 +211,7 @@ export default function TelegramChatsList() {
         {/* Add Form */}
         {showAddForm && (
           <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 placeholder="Введите Chat ID (например: 123456789)"
@@ -264,36 +264,34 @@ export default function TelegramChatsList() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
         {chats.length === 0 ? (
-          <div className="p-12 text-center">
-            <i className="fab fa-telegram text-6xl text-gray-300 mb-4"></i>
-            <p className="text-gray-500 text-lg">Чаты не найдены</p>
-            <p className="text-gray-400 text-sm mt-2">
-              Добавьте Chat ID для получения уведомлений
-            </p>
+          <div className="p-8 sm:p-12 text-center">
+            <i className="fab fa-telegram text-5xl sm:text-6xl text-gray-300 mb-4"></i>
+            <p className="text-gray-500 text-base sm:text-lg">Чаты не найдены</p>
+            <p className="text-gray-400 text-xs sm:text-sm mt-2">Добавьте Chat ID для получения уведомлений</p>
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[640px]">
             <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  <i className="fas fa-hashtag mr-2"></i>Chat ID
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <i className="fas fa-hashtag mr-1 sm:mr-2"></i>Chat ID
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  <i className="fas fa-user mr-2"></i>Информация
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <i className="fas fa-user mr-1 sm:mr-2"></i>Информация
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  <i className="fas fa-tag mr-2"></i>Тип
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <i className="fas fa-tag mr-1 sm:mr-2"></i>Тип
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  <i className="fas fa-toggle-on mr-2"></i>Статус
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <i className="fas fa-toggle-on mr-1 sm:mr-2"></i>Статус
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  <i className="fas fa-calendar mr-2"></i>Добавлен
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <i className="fas fa-calendar mr-1 sm:mr-2"></i>Добавлен
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  <i className="fas fa-cog mr-2"></i>Действия
+                <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <i className="fas fa-cog mr-1 sm:mr-2"></i>Действия
                 </th>
               </tr>
             </thead>
@@ -305,12 +303,12 @@ export default function TelegramChatsList() {
                     !chat.isActive ? 'opacity-60' : ''
                   }`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-mono font-medium text-gray-900">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                    <span className="text-xs sm:text-sm font-mono font-medium text-gray-900">
                       {chat.chatId}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <div>
                       {chat.title ? (
                         <div className="text-sm font-semibold text-gray-900">
@@ -328,13 +326,13 @@ export default function TelegramChatsList() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       <i className="fas fa-tag mr-1"></i>
                       {chat.chatType === 'group' ? 'Группа' : 'Личный'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     <button
                       onClick={() => handleToggleActive(chat.id, chat.isActive)}
                       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
@@ -351,15 +349,16 @@ export default function TelegramChatsList() {
                       {chat.isActive ? 'Активен' : 'Неактивен'}
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-900">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                    <span className="text-xs sm:text-sm text-gray-900">
                       {new Date(chat.createdAt).toLocaleDateString('ru-RU')}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     <button
+                      type="button"
                       onClick={() => handleDelete(chat.id)}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors gap-2"
+                      className="inline-flex items-center px-3 py-2 min-h-[36px] text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors gap-2 touch-manipulation"
                     >
                       <i className="fas fa-trash"></i>
                       Удалить
