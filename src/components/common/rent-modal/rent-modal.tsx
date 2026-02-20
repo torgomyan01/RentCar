@@ -190,7 +190,7 @@ const RentModal = ({
   };
 
   const handleDateClick = (date: Date) => {
-    if (isDateMuted(date) || isDateDisabled(date)) return;
+    if (isDateDisabled(date)) return;
 
     if (!startDate || (startDate && endDate)) {
       // Start new selection
@@ -205,6 +205,11 @@ const RentModal = ({
       } else {
         setEndDate(date);
       }
+    }
+
+    // If user selected a day from adjacent month, switch visible month too.
+    if (isDateMuted(date)) {
+      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     }
   };
 

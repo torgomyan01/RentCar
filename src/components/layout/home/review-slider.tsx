@@ -21,6 +21,15 @@ const getInitials = (name: string): string => {
   return name[0].toUpperCase();
 };
 
+const formatReviewDate = (value: Date | string): string => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+  }).format(date);
+};
+
 interface ReviewSliderProps {
   reviews: Review[];
 }
@@ -86,6 +95,7 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
       >
         {reviews.map((review) => {
           const hasImage = review.image && review.image.trim() !== '';
+          const reviewDate = formatReviewDate(review.createdAt);
           return (
             <SwiperSlide key={review.id}>
               <div className="review-card">
@@ -118,7 +128,12 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
                     )}
                   </div>
                   <div className="texts">
-                    <span className="name">{review.name}</span>
+                    <span className="name mb-1!">{review.name}</span>
+                    {reviewDate && (
+                      <span className="text-xs text-gray-500 mb-2 block">
+                        {reviewDate}
+                      </span>
+                    )}
                     <div className="stars">
                       {Array.from({ length: 5 }).map((_, index) => (
                         <img
@@ -209,6 +224,18 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
                       </div>
                       <div className="texts">
                         <span className="name">{modalReview.name}</span>
+                        {formatReviewDate(modalReview.createdAt) && (
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '12px',
+                              color: '#888',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {formatReviewDate(modalReview.createdAt)}
+                          </span>
+                        )}
                         <div className="stars">
                           {Array.from({ length: 5 }).map((_, index) => (
                             <img
