@@ -79,8 +79,8 @@ const RentModal = ({
   });
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  const [startTime, setStartTime] = useState('14:00');
-  const [endTime, setEndTime] = useState('22:00');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('09:00');
   const [selectingStart, setSelectingStart] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   // Կոնտակտային դաշտեր (երբ car նշված է)
