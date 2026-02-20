@@ -428,10 +428,10 @@ function ProductCard({ car, cars, index, otherInfo }: ProductCardProps) {
               <span className="grey">Количество мест</span>
               <span className="black">{getSeats(car)}</span>
             </li>
-            <li>
+            {/* <li>
               <span className="grey">Количество дверей</span>
               <span className="black">{getDoors(car)}</span>
-            </li>
+            </li> */}
             <li>
               <span className="grey">Класс</span>
               <span className="black">{formatCarClass(car.car_class)}</span>
