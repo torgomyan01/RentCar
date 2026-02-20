@@ -1,6 +1,6 @@
 export const BUSINESS_HOURS_START_MINUTES = 9 * 60; // 09:00
 export const BUSINESS_HOURS_END_MINUTES = 18 * 60; // 18:00
-export const EXTRA_TIME_FEE_RUB = 3000;
+export const EXTRA_TIME_FEE_PER_EVENT_RUB = 2000;
 
 export function parseTimeToMinutes(dateTimeOrTime?: string | null): number | null {
   if (!dateTimeOrTime) return null;
@@ -29,14 +29,42 @@ export function hasExtraTimeFee(
   startDateTime?: string | null,
   endDateTime?: string | null
 ): boolean {
+  return calculateExtraTimeFee(startDateTime, endDateTime).hasAnyExtraFee;
+}
+
+export function calculateExtraTimeFee(
+  startDateTime?: string | null,
+  endDateTime?: string | null
+): {
+  startOutside: boolean;
+  endOutside: boolean;
+  eventsCount: number;
+  totalFee: number;
+  hasAnyExtraFee: boolean;
+} {
   const startMinutes = parseTimeToMinutes(startDateTime);
   const endMinutes = parseTimeToMinutes(endDateTime);
 
   if (startMinutes === null || endMinutes === null) {
-    return false;
+    return {
+      startOutside: false,
+      endOutside: false,
+      eventsCount: 0,
+      totalFee: 0,
+      hasAnyExtraFee: false,
+    };
   }
 
-  return (
-    isOutsideBusinessHours(startMinutes) || isOutsideBusinessHours(endMinutes)
-  );
+  const startOutside = isOutsideBusinessHours(startMinutes);
+  const endOutside = isOutsideBusinessHours(endMinutes);
+  const eventsCount = Number(startOutside) + Number(endOutside);
+  const totalFee = eventsCount * EXTRA_TIME_FEE_PER_EVENT_RUB;
+
+  return {
+    startOutside,
+    endOutside,
+    eventsCount,
+    totalFee,
+    hasAnyExtraFee: totalFee > 0,
+  };
 }

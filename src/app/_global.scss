@@ -2493,6 +2493,85 @@ a {
     padding: 0 8px;
   }
 
+  // Range-based time picker (slider style)
+  .time-range-picker {
+    width: 100%;
+  }
+
+  .time-range-wrap {
+    position: relative;
+    padding-top: 26px;
+  }
+
+  .time-range-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+    transition: filter 0.2s ease;
+
+    &:hover {
+      filter: brightness(0.98);
+    }
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #df3b33;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(223, 59, 51, 0.35);
+      margin-top: -6px;
+    }
+
+    &::-webkit-slider-runnable-track {
+      height: 10px;
+      border-radius: 999px;
+      background: transparent;
+    }
+
+    &::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 50%;
+      background: #df3b33;
+      box-shadow: 0 2px 8px rgba(223, 59, 51, 0.35);
+    }
+
+    &::-moz-range-track {
+      height: 10px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+    }
+  }
+
+  .time-range-badge {
+    position: absolute;
+    top: 19px;
+    transform: translateX(-50%);
+    background: #df3b33;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 8px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+    pointer-events: none;
+
+    @media (max-width: 767px) {
+      font-size: 28px;
+      padding: 7px 16px;
+    }
+  }
+
   .rent-note {
     p {
       color: #373737;

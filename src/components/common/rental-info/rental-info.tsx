@@ -3,15 +3,24 @@
 import { useMemo, useState } from 'react';
 import { Tooltip } from '@heroui/react';
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
-import { hasExtraTimeFee as hasExtraTimeFeeByBusinessHours } from '@/lib/business-hours-fee';
+import {
+  calculateExtraTimeFee,
+  EXTRA_TIME_FEE_PER_EVENT_RUB,
+} from '@/lib/business-hours-fee';
+import {
+  getExtraMileageFee,
+  getExtraMileageKm,
+  getIncludedMileageLimit,
+} from '@/lib/mileage-pricing';
 
 interface RentalInfoProps {
   car: Car;
   rentalDays: number;
   includedMileage: number;
+  requestedMileage?: number;
   startDateTime?: string | null;
   endDateTime?: string | null;
-  hasExtraTimeFee?: boolean;
+  extraTimeFeeAmount?: number;
 }
 
 // Helper function to extract prices array from car
@@ -97,12 +106,14 @@ function formatDaysText(days: number): string {
 function RentalInfo({
   car,
   rentalDays,
+  requestedMileage = 0,
   startDateTime,
   endDateTime,
-  hasExtraTimeFee: hasExtraTimeFeeProp,
+  extraTimeFeeAmount: extraTimeFeeAmountProp,
 }: RentalInfoProps) {
   const [tooltipMileageOpen, setTooltipMileageOpen] = useState(false);
   const [tooltipExtraOpen, setTooltipExtraOpen] = useState(false);
+  const [tooltipExtraMileageOpen, setTooltipExtraMileageOpen] = useState(false);
 
   // Extract prices from car
   const prices = useMemo(() => extractPrices(car), [car]);
@@ -119,17 +130,25 @@ function RentalInfo({
 
   // Calculate maximum mileage: rentalDays * extra_mileage_km per day
   const maxMileage = useMemo(() => {
-    if (car.extra_mileage_km) {
-      return rentalDays * car.extra_mileage_km;
-    }
-    return 0;
+    return getIncludedMileageLimit(rentalDays, car.extra_mileage_km);
   }, [rentalDays, car.extra_mileage_km]);
 
   const computedExtraTimeFee = useMemo(() => {
-    return hasExtraTimeFeeByBusinessHours(startDateTime, endDateTime);
+    return calculateExtraTimeFee(startDateTime, endDateTime);
   }, [startDateTime, endDateTime]);
 
-  const hasExtraTimeFee = hasExtraTimeFeeProp ?? computedExtraTimeFee;
+  const extraTimeFeeAmount =
+    extraTimeFeeAmountProp ?? computedExtraTimeFee.totalFee;
+  const hasExtraTimeFee = extraTimeFeeAmount > 0;
+  const extraMileageKm = useMemo(
+    () => getExtraMileageKm(requestedMileage, maxMileage),
+    [requestedMileage, maxMileage]
+  );
+  const extraMileageFee = useMemo(
+    () => getExtraMileageFee(extraMileageKm, car.extra_mileage_price),
+    [extraMileageKm, car.extra_mileage_price]
+  );
+  const finalTotalPrice = totalPrice + extraTimeFeeAmount + extraMileageFee;
 
   return (
     <>
@@ -168,6 +187,23 @@ function RentalInfo({
             </Tooltip>
           </li>
         )}
+        {requestedMileage > 0 && (
+          <li>
+            <span className="grey-text">Пробег поездки</span>
+            <span className="black-text">
+              {requestedMileage.toLocaleString('ru-RU')} км
+            </span>
+          </li>
+        )}
+        {extraMileageKm > 0 && (
+          <li>
+            <span className="grey-text">Перепробег</span>
+            <span className="black-text">
+              +{extraMileageKm.toLocaleString('ru-RU')} км (
+              {extraMileageFee.toLocaleString('ru-RU')} ₽)
+            </span>
+          </li>
+        )}
       </ul>
       <div className="price-info">
         <div className="top-info">
@@ -176,9 +212,15 @@ function RentalInfo({
             {hasExtraTimeFee && (
               <>
                 {' '}
-                + <b>3 000 ₽</b>
+                +{' '}
+                <b>
+                  {Math.round(
+                    extraTimeFeeAmount / EXTRA_TIME_FEE_PER_EVENT_RUB
+                  ) * EXTRA_TIME_FEE_PER_EVENT_RUB}{' '}
+                  ₽
+                </b>
                 <Tooltip
-                  content="Доплата применяется при времени выдачи/возврата вне интервала 09:00–18:00."
+                  content={`Доплата 2 000 ₽ за каждое событие вне 09:00–18:00 (выдача и/или возврат). Сейчас: ${Math.round(extraTimeFeeAmount / EXTRA_TIME_FEE_PER_EVENT_RUB)} × ${EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽.`}
                   placement="top"
                   isOpen={tooltipExtraOpen}
                   onOpenChange={setTooltipExtraOpen}
@@ -201,11 +243,42 @@ function RentalInfo({
                 </Tooltip>
               </>
             )}
+            {extraMileageFee > 0 && (
+              <>
+                {' '}
+                <Tooltip
+                  content={`Доплата за перепробег: ${extraMileageKm.toLocaleString(
+                    'ru-RU'
+                  )} км × ${(car.extra_mileage_price || 15).toLocaleString(
+                    'ru-RU'
+                  )} ₽/км.`}
+                  placement="top"
+                  isOpen={tooltipExtraMileageOpen}
+                  onOpenChange={setTooltipExtraMileageOpen}
+                  classNames={{
+                    content: 'px-4! py-1!',
+                  }}
+                >
+                  <b
+                    className="ml-2 inline-flex items-center gap-1 cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setTooltipExtraMileageOpen((o) => !o)}
+                    onKeyDown={(e) =>
+                      (e.key === 'Enter' || e.key === ' ') &&
+                      setTooltipExtraMileageOpen((o) => !o)
+                    }
+                  >
+                    +{extraMileageFee.toLocaleString('ru-RU')} ₽
+                  </b>
+                </Tooltip>
+              </>
+            )}
           </span>
         </div>
         <div className="prices">
           <span className="new-price">
-            {totalPrice.toLocaleString('ru-RU')} ₽
+            {finalTotalPrice.toLocaleString('ru-RU')} ₽
           </span>
           <span className="old-price">
             {calculatedPrice.toLocaleString('ru-RU')} ₽/сутки

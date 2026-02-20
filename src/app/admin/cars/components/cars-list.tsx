@@ -36,6 +36,7 @@ export default function CarsList({ initialCars }: CarsListProps) {
       fileName: string;
       filePath: string;
       fileSize: number;
+      order: number;
     }>
   >([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -254,6 +255,32 @@ export default function CarsList({ initialCars }: CarsListProps) {
     } catch (error) {
       console.error('Error deleting media:', error);
       alert('Ошибка при удалении файла');
+    }
+  };
+
+  const handleSetMainMedia = async (mediaId: string) => {
+    if (!selectedGroup) return;
+
+    try {
+      const encodedGroupKey = encodeURIComponent(selectedGroup.key);
+      const response = await fetch(`/api/admin/cars/${encodedGroupKey}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mediaId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setGroupMedia(data.media || []);
+      } else {
+        alert(data.error || 'Ошибка при смене главного фото');
+      }
+    } catch (error) {
+      console.error('Error setting main media:', error);
+      alert('Ошибка при смене главного фото');
     }
   };
 
@@ -680,11 +707,23 @@ export default function CarsList({ initialCars }: CarsListProps) {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {groupMedia.map((media) => (
-                        <div
-                          key={media.id}
-                          className="relative group border border-gray-200 rounded-lg overflow-hidden"
-                        >
+                      {groupMedia.map((media) => {
+                        const firstImage = groupMedia.find(
+                          (item) => item.type === 'image'
+                        );
+                        const isMainImage =
+                          media.type === 'image' && firstImage?.id === media.id;
+
+                        return (
+                          <div
+                            key={media.id}
+                            className="relative group border border-gray-200 rounded-lg overflow-hidden"
+                          >
+                            {isMainImage && (
+                              <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded bg-indigo-600 text-white text-[11px] font-medium">
+                                Главное
+                              </div>
+                            )}
                           {media.type === 'image' ? (
                             <img
                               src={getServerImageUrl(media.filePath)}
@@ -703,13 +742,24 @@ export default function CarsList({ initialCars }: CarsListProps) {
                             />
                           )}
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <button
-                              onClick={() => handleDeleteMedia(media.id)}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                            >
-                              <i className="fas fa-trash"></i>
-                              Удалить
-                            </button>
+                            <div className="flex flex-col gap-2">
+                              {media.type === 'image' && !isMainImage && (
+                                <button
+                                  onClick={() => handleSetMainMedia(media.id)}
+                                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                                >
+                                  <i className="fas fa-star"></i>
+                                  Сделать главным
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteMedia(media.id)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                              >
+                                <i className="fas fa-trash"></i>
+                                Удалить
+                              </button>
+                            </div>
                           </div>
                           <div className="p-2 bg-white">
                             <p className="text-xs text-gray-600 truncate">
@@ -719,8 +769,9 @@ export default function CarsList({ initialCars }: CarsListProps) {
                               {(media.fileSize / 1024 / 1024).toFixed(2)} MB
                             </p>
                           </div>
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -301,3 +301,76 @@ export async function DELETE(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ groupKey: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || (session.user as any)?.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const resolvedParams = await params;
+    const groupKey = decodeURIComponent(resolvedParams.groupKey);
+    const body = await request.json();
+    const mediaId = body?.mediaId as string | undefined;
+
+    if (!mediaId) {
+      return NextResponse.json({ error: 'Media ID required' }, { status: 400 });
+    }
+
+    const selectedMedia = await prisma.carGroupMedia.findUnique({
+      where: { id: mediaId },
+    });
+
+    if (!selectedMedia || selectedMedia.groupKey !== groupKey) {
+      return NextResponse.json({ error: 'Media not found' }, { status: 404 });
+    }
+
+    if (selectedMedia.type !== 'image') {
+      return NextResponse.json(
+        { error: 'Only images can be set as main' },
+        { status: 400 }
+      );
+    }
+
+    const images = await prisma.carGroupMedia.findMany({
+      where: { groupKey, type: 'image' },
+      orderBy: { order: 'asc' },
+    });
+
+    if (images.length === 0) {
+      return NextResponse.json({ error: 'No images found' }, { status: 404 });
+    }
+
+    const reorderedIds = [
+      mediaId,
+      ...images.filter((img) => img.id !== mediaId).map((img) => img.id),
+    ];
+
+    await prisma.$transaction(
+      reorderedIds.map((id, index) =>
+        prisma.carGroupMedia.update({
+          where: { id },
+          data: { order: index },
+        })
+      )
+    );
+
+    const media = await prisma.carGroupMedia.findMany({
+      where: { groupKey },
+      orderBy: [{ type: 'asc' }, { order: 'asc' }],
+    });
+
+    return NextResponse.json({ success: true, media });
+  } catch (error: any) {
+    console.error('Error reordering media:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to reorder media' },
+      { status: 500 }
+    );
+  }
+}

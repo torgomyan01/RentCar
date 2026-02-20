@@ -10,8 +10,6 @@ export default async function ReviewBlock() {
       <div className="container">
         <div className="title-wrap">
           <h2>о нас говорят</h2>
-          <img src="/img/review-img1.svg" alt="" className="rev-logo" />
-          <img src="/img/review-img2.svg" alt="" className="rev-logo" />
           <div className="text-style">
             <img src="/img/style-icon.png" alt="" />
             <span>Отзывы</span>

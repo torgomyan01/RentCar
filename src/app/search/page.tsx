@@ -10,7 +10,8 @@ import { getFreeCars } from '@/app/actions/cars';
 import type { Car } from '@/lib/rentprog-api-server';
 import { useAppSelector } from '@/store/store';
 import { useSearchParams } from 'next/navigation';
-import { hasExtraTimeFee as hasExtraTimeFeeByBusinessHours } from '@/lib/business-hours-fee';
+import { calculateExtraTimeFee } from '@/lib/business-hours-fee';
+import { parseMileageInput } from '@/lib/mileage-pricing';
 
 function SearchPage() {
   const searchParams = useSearchParams();
@@ -21,6 +22,10 @@ function SearchPage() {
   const [activeTabs, setActiveTabs] = useState<string[]>(['all']);
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const requestedMileage = useMemo(
+    () => parseMileageInput(searchParams.get('mileage')),
+    [searchParams]
+  );
 
   // Merge freeCars with allCars data by id
   const mergeCarsData = (freeCars: Car[], allCars: Car[]): Car[] => {
@@ -237,8 +242,8 @@ function SearchPage() {
     [startDate, endDate]
   );
 
-  const hasExtraTimeFee = useMemo(() => {
-    return hasExtraTimeFeeByBusinessHours(startDate, endDate);
+  const extraTimeFeeInfo = useMemo(() => {
+    return calculateExtraTimeFee(startDate, endDate);
   }, [startDate, endDate]);
 
   // Calculate included mileage (200 km per day)
@@ -294,9 +299,10 @@ function SearchPage() {
                               car={mainCar}
                               rentalDays={rentalDays}
                               includedMileage={includedMileage}
+                              requestedMileage={requestedMileage}
                               startDateTime={startDate}
                               endDateTime={endDate}
-                              hasExtraTimeFee={hasExtraTimeFee}
+                              extraTimeFeeAmount={extraTimeFeeInfo.totalFee}
                             />
                           }
                         />

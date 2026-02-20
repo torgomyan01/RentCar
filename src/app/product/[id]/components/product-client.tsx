@@ -24,9 +24,15 @@ import { getServerImageUrl } from '@/lib/uploads';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
-  EXTRA_TIME_FEE_RUB,
-  hasExtraTimeFee as hasExtraTimeFeeByBusinessHours,
+  calculateExtraTimeFee,
+  EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
+import {
+  getExtraMileageFee,
+  getExtraMileageKm,
+  getIncludedMileageLimit,
+  parseMileageInput,
+} from '@/lib/mileage-pricing';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -260,10 +266,18 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     [startDate, endDate]
   );
 
+  const requestedMileage = useMemo(() => parseMileageInput(mileage), [mileage]);
   const includedMileage = useMemo(() => {
-    if (!car?.extra_mileage_km) return 0;
-    return rentalDays * car.extra_mileage_km;
+    return getIncludedMileageLimit(rentalDays, car?.extra_mileage_km);
   }, [rentalDays, car?.extra_mileage_km]);
+  const extraMileageKm = useMemo(
+    () => getExtraMileageKm(requestedMileage, includedMileage),
+    [requestedMileage, includedMileage]
+  );
+  const extraMileageFee = useMemo(
+    () => getExtraMileageFee(extraMileageKm, car?.extra_mileage_price),
+    [extraMileageKm, car?.extra_mileage_price]
+  );
 
   // Group cars by model (same car, different colors and years)
   const carGroup = useMemo(() => {
@@ -500,16 +514,17 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return maxDailyPrice * rentalDays;
   }, [maxDailyPrice, rentalDays]);
 
-  const hasExtraTimeFee = useMemo(() => {
-    return hasExtraTimeFeeByBusinessHours(startDate, endDate);
+  const extraTimeFeeInfo = useMemo(() => {
+    return calculateExtraTimeFee(startDate, endDate);
   }, [startDate, endDate]);
-  const extraTimeFee = hasExtraTimeFee ? EXTRA_TIME_FEE_RUB : 0;
+  const extraTimeFee = extraTimeFeeInfo.totalFee;
 
-  const totalPrice = rentalPrice + totalAdditionalPrice + extraTimeFee;
+  const totalPrice =
+    rentalPrice + totalAdditionalPrice + extraTimeFee + extraMileageFee;
   const deposit = 5000;
   const finalTotalWithDeposit = totalPrice + deposit;
   const oldTotalWithDeposit =
-    oldRentalPrice + totalAdditionalPrice + extraTimeFee + deposit;
+    oldRentalPrice + totalAdditionalPrice + extraTimeFee + extraMileageFee + deposit;
 
   const handleOptionToggle = (optionId: string) => {
     const exclusiveOptions = new Set([
@@ -644,7 +659,18 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 • Аренда: ${rentalPrice.toLocaleString('ru-RU')} ₽
 ${selectedOptionsText ? `• Дополнительные опции:\n${selectedOptionsText}` : ''}
 • Доплата за нерабочее время: ${
-        hasExtraTimeFee ? `+ ${EXTRA_TIME_FEE_RUB.toLocaleString('ru-RU')} ₽` : 'нет'
+        extraTimeFee > 0
+          ? `+ ${extraTimeFee.toLocaleString('ru-RU')} ₽ (${extraTimeFeeInfo.eventsCount} × ${EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)`
+          : 'нет'
+      }
+• Пробег поездки: ${
+        requestedMileage > 0 ? `${requestedMileage.toLocaleString('ru-RU')} км` : 'не указан'
+      }
+• Включенный километраж: ${includedMileage.toLocaleString('ru-RU')} км
+• Перепробег: ${
+        extraMileageKm > 0
+          ? `${extraMileageKm.toLocaleString('ru-RU')} км (+ ${extraMileageFee.toLocaleString('ru-RU')} ₽)`
+          : 'нет'
       }
 • Депозит: ${deposit.toLocaleString('ru-RU')} ₽
 • Итого: ${totalPrice.toLocaleString('ru-RU')} ₽
@@ -714,11 +740,15 @@ ${pricingInfo}
     endDate,
     rentalDays,
     includedMileage,
+    requestedMileage,
+    extraMileageKm,
+    extraMileageFee,
     rentalPrice,
     selectedOptionsList,
     totalPrice,
     deposit,
-    hasExtraTimeFee,
+    extraTimeFee,
+    extraTimeFeeInfo.eventsCount,
     carGroup,
     openModal,
     formatDateForAPI,
@@ -1027,6 +1057,12 @@ ${pricingInfo}
                       <span>Включенный километраж</span>
                       <b>{includedMileage.toLocaleString('ru-RU')} км</b>
                     </div>
+                {requestedMileage > 0 && (
+                  <div className="row">
+                    <span>Пробег поездки</span>
+                    <b>{requestedMileage.toLocaleString('ru-RU')} км</b>
+                  </div>
+                )}
                   </>
                 )}
 
@@ -1111,10 +1147,21 @@ ${pricingInfo}
                   </motion.div>
                 ))}
 
-                {hasExtraTimeFee && (
+                {extraTimeFee > 0 && (
                   <div className="sum-row">
-                    <span>Нерабочее время</span>
-                    <b>+ {EXTRA_TIME_FEE_RUB.toLocaleString('ru-RU')} ₽</b>
+                    <span>
+                      Нерабочее время ({extraTimeFeeInfo.eventsCount} ×{' '}
+                      {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)
+                    </span>
+                    <b>+ {extraTimeFee.toLocaleString('ru-RU')} ₽</b>
+                  </div>
+                )}
+                {extraMileageFee > 0 && (
+                  <div className="sum-row">
+                    <span>
+                      Перепробег (+{extraMileageKm.toLocaleString('ru-RU')} км)
+                    </span>
+                    <b>+ {extraMileageFee.toLocaleString('ru-RU')} ₽</b>
                   </div>
                 )}
 

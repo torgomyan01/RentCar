@@ -1,12 +1,44 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import TimePicker from '@/components/common/time-picker/time-picker';
 import type { Car } from '@/lib/rentprog-api-server';
 import {
-  EXTRA_TIME_FEE_RUB,
-  hasExtraTimeFee as hasExtraTimeFeeByBusinessHours,
+  calculateExtraTimeFee,
+  EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
+
+const TIME_RANGE_MINUTES = 6 * 60; // 06:00
+const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
+const TIME_RANGE_STEP_MINUTES = 30; // 30 minutes
+
+function parseClockToMinutes(value: string): number {
+  const match = value.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!match) return TIME_RANGE_MINUTES;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return TIME_RANGE_MINUTES;
+  return h * 60 + m;
+}
+
+function clampAndSnapMinutes(value: number): number {
+  const clamped = Math.min(
+    TIME_RANGE_MAX_MINUTES,
+    Math.max(TIME_RANGE_MINUTES, value)
+  );
+  const snapped =
+    Math.round(clamped / TIME_RANGE_STEP_MINUTES) * TIME_RANGE_STEP_MINUTES;
+  return Math.min(
+    TIME_RANGE_MAX_MINUTES,
+    Math.max(TIME_RANGE_MINUTES, snapped)
+  );
+}
+
+function minutesToClock(value: number): string {
+  const normalized = clampAndSnapMinutes(value);
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
 
 function formatCarName(car: Car): string {
   if (car.car_name) return car.car_name;
@@ -67,6 +99,8 @@ const RentModal = ({
       setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
       setStartDate(null);
       setEndDate(null);
+      setStartTime((prev) => minutesToClock(parseClockToMinutes(prev)));
+      setEndTime((prev) => minutesToClock(parseClockToMinutes(prev)));
       setContactName('');
       setContactPhone('');
       setContactMessage('');
@@ -290,7 +324,7 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
       };
       const periodText = `${formatD(startDate)} ${startTime} – ${formatD(endDate)} ${endTime}`;
       const carName = formatCarName(car);
-      const hasExtraTimeFee = hasExtraTimeFeeByBusinessHours(startTime, endTime);
+      const extraTimeFeeInfo = calculateExtraTimeFee(startTime, endTime);
       const message = `
 🚗 *Заявка на аренду автомобиля*
 
@@ -300,7 +334,9 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
 
 📅 *Период аренды:* ${periodText}
 💼 *Нерабочее время:* ${
-        hasExtraTimeFee ? `да (+ ${EXTRA_TIME_FEE_RUB.toLocaleString('ru-RU')} ₽)` : 'нет'
+        extraTimeFeeInfo.hasAnyExtraFee
+          ? `да (+ ${extraTimeFeeInfo.totalFee.toLocaleString('ru-RU')} ₽: ${extraTimeFeeInfo.eventsCount} × ${EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)`
+          : 'нет'
       }
 
 👤 *Клиент:*
@@ -375,6 +411,44 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
 
   const weekDays = ['П', 'В', 'С', 'Ч', 'П', 'С', 'В'];
   const days = getDaysInMonth(currentMonth);
+  const extraTimeFeeInfo = calculateExtraTimeFee(startTime, endTime);
+  const startOutside = extraTimeFeeInfo.startOutside;
+  const endOutside = extraTimeFeeInfo.endOutside;
+  const showNonBusinessHoursInfo = extraTimeFeeInfo.hasAnyExtraFee;
+
+  const renderTimeSlider = (
+    label: string,
+    value: string,
+    onChange: (next: string) => void
+  ) => {
+    const minutes = clampAndSnapMinutes(parseClockToMinutes(value));
+    const percent =
+      ((minutes - TIME_RANGE_MINUTES) * 100) /
+      (TIME_RANGE_MAX_MINUTES - TIME_RANGE_MINUTES);
+
+    return (
+      <div className="time-range-picker">
+        <label className="time-label">{label}</label>
+        <div className="time-range-wrap">
+          <input
+            type="range"
+            min={TIME_RANGE_MINUTES}
+            max={TIME_RANGE_MAX_MINUTES}
+            step={TIME_RANGE_STEP_MINUTES}
+            value={minutes}
+            onChange={(e) => onChange(minutesToClock(Number(e.target.value)))}
+            className="time-range-input"
+            style={{
+              background: `linear-gradient(to right, #df3b33 0%, #df3b33 ${percent}%, #d9dde2 ${percent}%, #d9dde2 100%)`,
+            }}
+          />
+          <span className="time-range-badge" style={{ left: `${percent}%` }}>
+            {minutesToClock(minutes)}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   if (!isOpen && !isClosing) return null;
 
@@ -536,42 +610,54 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
 
             <div className="rent-info">
               <div className="field time-field relative z-100">
-                <TimePicker
-                  value={startTime}
-                  onChange={setStartTime}
-                  label="Время начала аренды"
-                />
+                {renderTimeSlider(
+                  'Время начала аренды',
+                  startTime,
+                  setStartTime
+                )}
               </div>
 
               <div className="field time-field relative z-10">
-                <TimePicker
-                  value={endTime}
-                  onChange={setEndTime}
-                  label="Время окончания аренды"
-                />
+                {renderTimeSlider(
+                  'Время окончания аренды',
+                  endTime,
+                  setEndTime
+                )}
               </div>
 
-              <div className="rent-note">
-                <p>
-                  За выдачу/прием автомобиля ранее или позднее взимается доп.
-                  плата
-                </p>
-                <div className="rent-fee">
-                  <span>9.00 – 18.00</span>
-                  <span className="border border-none!"></span>
-                  <span className="free">Без доплат</span>
+              {showNonBusinessHoursInfo && (
+                <div className="rent-note">
+                  <p>
+                    За выдачу/прием автомобиля вне рабочего времени взимается
+                    доп. плата
+                  </p>
+                  <div className="rent-fee">
+                    <span>9.00 - 18.00</span>
+                    <span className="border border-none!"></span>
+                    <span className="paid">без доплат</span>
+                  </div>
+                  {startOutside && (
+                    <div className="rent-fee">
+                      <span>Выдача: {startTime}</span>
+                      <span className="border border-none!"></span>
+                      <span className="paid">
+                        + {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')}{' '}
+                        ₽
+                      </span>
+                    </div>
+                  )}
+                  {endOutside && (
+                    <div className="rent-fee">
+                      <span>Возврат: {endTime}</span>
+                      <span className="border border-none!"></span>
+                      <span className="paid">
+                        + {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')}{' '}
+                        ₽
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="rent-fee">
-                  <span>до 09.00</span>
-                  <span className="border border-none!"></span>
-                  <span className="paid">+ 3000 ₽</span>
-                </div>
-                <div className="rent-fee">
-                  <span>после 18.00</span>
-                  <span className="border border-none!"></span>
-                  <span className="paid">+ 3000 ₽</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
