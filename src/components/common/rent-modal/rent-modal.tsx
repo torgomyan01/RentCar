@@ -626,7 +626,7 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
               </div>
 
               {showNonBusinessHoursInfo && (
-                <div className="rent-note">
+                <div className="rent-note rent-note--sticky-mobile">
                   <p>
                     За выдачу/прием автомобиля вне рабочего времени взимается
                     доп. плата
