@@ -1011,7 +1011,7 @@ a {
 
 .main {
   overflow: hidden;
-  padding-top: 110px;
+  padding-top: 90px;
   @media (max-width: 1024px) {
     padding-top: 65px;
   }
@@ -1027,7 +1027,7 @@ a {
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     display: flex;
     align-items: center;
-    padding: 30px 0;
+    padding: 20px 0;
     @media (max-width: 1024px) {
       padding: 18px 0;
     }
@@ -1657,13 +1657,13 @@ a {
     }
   }
   .our-cars-list {
-    margin-bottom: 100px;
+    margin-bottom: 50px;
     display: flex;
     justify-content: space-between;
     gap: 20px;
     @media (max-width: 1024px) {
       flex-direction: column;
-      margin-bottom: 50px;
+      margin-bottom: 40px;
       gap: 30px;
     }
     .list-item {
@@ -1720,7 +1720,7 @@ a {
 }
 
 .banner {
-  padding-top: 145px;
+  padding-top: 110px;
   margin-top: -110px;
   padding-bottom: 75px;
   background: url(/img/banner-bg.png);
@@ -1779,7 +1779,7 @@ a {
     h1 {
       max-width: 1000px;
       width: 100%;
-      margin: 0 auto 50px;
+      margin: 0 auto 35px;
       color: #fff;
       font-size: 65px;
       font-weight: 400;
@@ -1789,8 +1789,10 @@ a {
       text-transform: uppercase;
       position: relative;
       z-index: 0;
+      text-indent: 60px;
       @media (max-width: 1024px) {
         text-align: center;
+        text-indent: 0px;
         font-size: 44px;
       }
       @media (max-width: 767px) {
@@ -1809,6 +1811,7 @@ a {
         position: absolute;
         bottom: 20px;
         right: 20px;
+        text-indent: 0px;
         @media (max-width: 1024px) {
           position: static;
           display: block;
@@ -1841,7 +1844,7 @@ a {
           color: #dfdfdf;
         }
         .date {
-          height: 66px;
+          height: 52px;
           border-radius: 50px;
           border: 1px solid rgba(255, 255, 255, 0.3);
           display: flex;
@@ -1884,7 +1887,7 @@ a {
           }
         }
         input {
-          height: 66px;
+          height: 52px;
           border-radius: 50px;
           border: 1px solid rgba(255, 255, 255, 0.3);
           width: 100%;
@@ -1924,7 +1927,7 @@ a {
       .red-btn {
         align-self: flex-start;
         margin-top: 35px;
-        height: 66px;
+        height: 52px;
         transition: all 0.3s ease;
         @media (max-width: 1100px) {
           padding: 14px 24px;

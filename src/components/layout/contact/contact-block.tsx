@@ -100,8 +100,6 @@ function ContactBlock() {
               </div>
               <span>Адрес:</span>
               <b>{settings.address}</b>
-              <span>Почта:</span>
-              <b>{settings.email}</b>
               <button
                 type="button"
                 className="red-btn"
