@@ -393,7 +393,9 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
       const year = date.getFullYear().toString().slice(-2);
       return `${day}.${month}.${year}`;
     };
-    return `${formatDate(startDate)} – ${formatDate(endDate)}`;
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    return `${formatDate(startDate)} - ${formatDate(endDate)} (${diffDays} суток)`;
   };
 
   const getMonthName = (date: Date) => {

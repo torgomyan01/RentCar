@@ -456,22 +456,15 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
     },
     {
-      id: 'casco',
-      name: 'Детское кресло',
+      id: 'booster',
+      name: 'Пакет "Спокойствие"',
       price: 2000,
       tooltip:
         'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
     },
     {
-      id: 'casco-no-franchise',
-      name: 'Аренда бустера',
-      price: 15000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-    {
-      id: 'booster',
-      name: 'Пакет "Спокойствие"',
+      id: 'casco',
+      name: 'Детское кресло',
       price: 2000,
       tooltip:
         'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
@@ -480,6 +473,13 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       id: 'child-seat',
       name: 'КАСКО ',
       price: 1000,
+      tooltip:
+        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
+    },
+    {
+      id: 'casco-no-franchise',
+      name: 'Аренда бустера',
+      price: 15000,
       tooltip:
         'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
     },
@@ -527,23 +527,18 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     oldRentalPrice + totalAdditionalPrice + extraTimeFee + extraMileageFee + deposit;
 
   const handleOptionToggle = (optionId: string) => {
-    const exclusiveOptions = new Set([
-      'peace-package',
-      'casco',
-      'casco-no-franchise',
-    ]);
+    // Страховки: можно выбрать только одну из трёх — Пакет "Спокойствие", КАСКО, Полное КАСКО
+    const insuranceOptions = new Set(['booster', 'child-seat', 'extra-driver']);
 
     setSelectedOptions((prev) => {
       const nextValue = !prev[optionId];
 
-      // For "Пакет спокойствие / КАСКО / КАСКО без франшизы"
-      // allow only one active option at a time.
-      if (exclusiveOptions.has(optionId)) {
+      if (insuranceOptions.has(optionId)) {
         return {
           ...prev,
-          'peace-package': false,
-          casco: false,
-          'casco-no-franchise': false,
+          booster: false,
+          'child-seat': false,
+          'extra-driver': false,
           [optionId]: nextValue,
         };
       }
