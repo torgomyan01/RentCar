@@ -524,7 +524,11 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const deposit = 5000;
   const finalTotalWithDeposit = totalPrice + deposit;
   const oldTotalWithDeposit =
-    oldRentalPrice + totalAdditionalPrice + extraTimeFee + extraMileageFee + deposit;
+    oldRentalPrice +
+    totalAdditionalPrice +
+    extraTimeFee +
+    extraMileageFee +
+    deposit;
 
   const handleOptionToggle = (optionId: string) => {
     // Страховки: можно выбрать только одну из трёх — Пакет "Спокойствие", КАСКО, Полное КАСКО
@@ -659,7 +663,9 @@ ${selectedOptionsText ? `• Дополнительные опции:\n${selecte
           : 'нет'
       }
 • Пробег поездки: ${
-        requestedMileage > 0 ? `${requestedMileage.toLocaleString('ru-RU')} км` : 'не указан'
+        requestedMileage > 0
+          ? `${requestedMileage.toLocaleString('ru-RU')} км`
+          : 'не указан'
       }
 • Включенный километраж: ${includedMileage.toLocaleString('ru-RU')} км
 • Перепробег: ${
@@ -898,10 +904,10 @@ ${pricingInfo}
                   modules={[Navigation, Thumbs]}
                   thumbs={{ swiper: thumbsSwiper }}
                   navigation
-                  className="main-slider"
+                  className="main-slider h-[400px]!"
                 >
                   {carImages.map((image, index) => (
-                    <SwiperSlide key={index} className="h-full">
+                    <SwiperSlide key={index} className="h-[400px]">
                       {index === 0 && groupVideo && (
                         <div
                           className="play"
@@ -915,9 +921,9 @@ ${pricingInfo}
                       <Image
                         src={getServerImageUrl(image)}
                         alt={carName}
-                        className="min-lg:min-h-[600px] object-cover rounded-[30px] cursor-zoom-in"
+                        className="h-[400px] object-cover rounded-[30px] cursor-zoom-in"
                         width={761}
-                        height={600}
+                        height={400}
                         onLoad={handleGalleryImageLoad}
                         onClick={() => {
                           setImageModalIndex(index);
@@ -1052,12 +1058,12 @@ ${pricingInfo}
                       <span>Включенный километраж</span>
                       <b>{includedMileage.toLocaleString('ru-RU')} км</b>
                     </div>
-                {requestedMileage > 0 && (
-                  <div className="row">
-                    <span>Пробег поездки</span>
-                    <b>{requestedMileage.toLocaleString('ru-RU')} км</b>
-                  </div>
-                )}
+                    {requestedMileage > 0 && (
+                      <div className="row">
+                        <span>Пробег поездки</span>
+                        <b>{requestedMileage.toLocaleString('ru-RU')} км</b>
+                      </div>
+                    )}
                   </>
                 )}
 
