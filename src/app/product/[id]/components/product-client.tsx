@@ -904,7 +904,7 @@ ${pricingInfo}
                   modules={[Navigation, Thumbs]}
                   thumbs={{ swiper: thumbsSwiper }}
                   navigation
-                  className="main-slider h-[400px]!"
+                  className="main-slider h-[250px]! sm:h-[350px]!"
                 >
                   {carImages.map((image, index) => (
                     <SwiperSlide key={index} className="h-[400px]">
@@ -937,7 +937,7 @@ ${pricingInfo}
                 <Swiper
                   modules={[Navigation, Thumbs]}
                   onSwiper={setThumbsSwiper}
-                  className="thumbs-slider"
+                  className="thumbs-slider h-[100px]!"
                   spaceBetween={10}
                   slidesPerView={4}
                 >
