@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import { useRentModal } from '@/contexts/rent-modal-context';
@@ -8,33 +8,61 @@ import { useContactSettings } from '@/hooks/use-contact-settings';
 
 declare global {
   interface Window {
-    ymaps: any;
+    ymaps: {
+      ready: (cb: () => void) => void;
+      Map: new (
+        element: HTMLElement,
+        state: { center: number[]; zoom: number; controls: string[] }
+      ) => {
+        geoObjects: { add: (obj: unknown) => void };
+        behaviors: { disable: (name: string) => void };
+        destroy: () => void;
+      };
+      Placemark: new (
+        coords: number[],
+        properties: { hintContent?: string; balloonContent?: string },
+        options?: object
+      ) => unknown;
+    };
   }
 }
 
 function ContactBlock() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInitialized = useRef(false);
+  const mapInstanceRef = useRef<{ destroy: () => void } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [ymapsReady, setYmapsReady] = useState(false);
+  const mapShownRef = useRef(false);
   const { openModal } = useRentModal();
   const { settings, loading } = useContactSettings();
 
-  const initMap = () => {
-    if (!window.ymaps || !mapRef.current || mapInitialized.current) return;
-    const lat = settings.mapCenterLat;
-    const lng = settings.mapCenterLng;
-    const zoom = settings.mapZoom;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const lat = settings.mapCenterLat;
+  const lng = settings.mapCenterLng;
+  const zoom = settings.mapZoom;
+
+  const showMap = isMounted && ymapsReady && !loading;
+  if (showMap) mapShownRef.current = true;
+  const renderMap = mapShownRef.current;
+
+  useEffect(() => {
+    if (!renderMap || !window.ymaps || loading || !mapRef.current) return;
 
     window.ymaps.ready(() => {
-      if (!mapRef.current || mapInitialized.current) return;
+      if (!mapRef.current || mapInstanceRef.current) return;
 
       const map = new window.ymaps.Map(mapRef.current, {
         center: [lat, lng],
-        zoom: zoom,
+        zoom,
         controls: [],
       });
 
       map.behaviors.disable('scrollZoom');
 
+      const iconUrl = `${window.location.origin}/img/map-icon.svg`;
       const placemark = new window.ymaps.Placemark(
         [lat, lng],
         {
@@ -43,31 +71,33 @@ function ContactBlock() {
         },
         {
           iconLayout: 'default#image',
-          iconImageHref: '/img/map-icon.svg',
-          iconImageSize: [140, 140],
-          iconImageOffset: [-20, -40],
+          iconImageHref: iconUrl,
+          iconImageSize: [80, 80],
+          iconImageOffset: [-40, -80],
         }
       );
 
       map.geoObjects.add(placemark);
-      mapInitialized.current = true;
+      mapInstanceRef.current = map;
     });
-  };
 
-  useEffect(() => {
-    if (window.ymaps && !loading) {
-      mapInitialized.current = false;
-      initMap();
-    }
-  }, [loading, settings.mapCenterLat, settings.mapCenterLng, settings.mapZoom]);
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [renderMap, loading, lat, lng, zoom]);
 
   return (
     <>
-      <Script
-        src="https://api-maps.yandex.ru/2.1/?apikey=&lang=ru_RU"
-        strategy="beforeInteractive"
-        onLoad={initMap}
-      />
+      {isMounted && (
+        <Script
+          src="https://api-maps.yandex.ru/2.1/?apikey=82565d77-d253-4813-acbd-be2e6b91cbbe&lang=ru_RU"
+          strategy="lazyOnload"
+          onLoad={() => setYmapsReady(true)}
+        />
+      )}
       <div className="contact-wrap">
         <div className="container">
           <Breadcrumbs
@@ -108,16 +138,47 @@ function ContactBlock() {
                 Оставить заявку
               </button>
             </div>
-            <div id="map" ref={mapRef}></div>
+            <div
+              style={{
+                minHeight: '400px',
+                height: '600px',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+              className="overflow-hidden rounded-2xl"
+            >
+              {renderMap ? (
+                <div
+                  ref={mapRef}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '400px',
+                    position: 'absolute',
+                    inset: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  className="map-placeholder"
+                  style={{ minHeight: '400px', background: '#eee' }}
+                  aria-hidden
+                />
+              )}
+            </div>
           </div>
           <div className="map-texts">
             <h3>О компании</h3>
             <div className="texts">
               <p>
-              НАМ ПО ПУТИ - прокат автомобилей в Москве. В нашем парке представлены автомобили от эконом класса до минивенов. Аренда автомобиля без водителя возможна всего от 1 суток. Взять машину напрокат можно всего по двум документам: паспорт и водительское удостоверение.
-              <br />
-              <br />
-              <b>НАМ ТОЧНО ПО ПУТИ!</b>
+                НАМ ПО ПУТИ - прокат автомобилей в Москве. В нашем парке
+                представлены автомобили от эконом класса до минивенов. Аренда
+                автомобиля без водителя возможна всего от 1 суток. Взять машину
+                напрокат можно всего по двум документам: паспорт и водительское
+                удостоверение.
+                <br />
+                <br />
+                <b>НАМ ТОЧНО ПО ПУТИ!</b>
               </p>
             </div>
           </div>

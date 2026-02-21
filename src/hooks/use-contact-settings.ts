@@ -25,8 +25,8 @@ const DEFAULTS: ContactSettings = {
   telegramUrl: 'https://t.me/ArendaAutoMoscow',
   telegramUrl2: 'https://t.me/aaaallleeexxxx',
   workHours: 'Работаем Пн-Сб с 9:00 до 21:00',
-  mapCenterLat: 55.751574,
-  mapCenterLng: 37.573856,
+  mapCenterLat: 56.484645,
+  mapCenterLng: 84.947649,
   mapZoom: 15,
 };
 
