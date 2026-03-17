@@ -113,7 +113,6 @@ function RentalInfo({
 }: RentalInfoProps) {
   const [tooltipMileageOpen, setTooltipMileageOpen] = useState(false);
   const [tooltipExtraOpen, setTooltipExtraOpen] = useState(false);
-  const [tooltipExtraMileageOpen, setTooltipExtraMileageOpen] = useState(false);
 
   // Extract prices from car
   const prices = useMemo(() => extractPrices(car), [car]);
@@ -127,6 +126,14 @@ function RentalInfo({
   const totalPrice = useMemo(() => {
     return calculatedPrice * rentalDays;
   }, [calculatedPrice, rentalDays]);
+  const maxDailyPrice = useMemo(() => {
+    if (!prices || prices.length === 0) return 0;
+    return Math.max(...prices);
+  }, [prices]);
+  const oldRentalTotal = useMemo(() => {
+    if (!rentalDays || !maxDailyPrice) return 0;
+    return maxDailyPrice * rentalDays;
+  }, [maxDailyPrice, rentalDays]);
 
   // Calculate maximum mileage: rentalDays * extra_mileage_km per day
   const maxMileage = useMemo(() => {
@@ -137,8 +144,20 @@ function RentalInfo({
     return calculateExtraTimeFee(startDateTime, endDateTime);
   }, [startDateTime, endDateTime]);
 
-  const extraTimeFeeAmount =
-    extraTimeFeeAmountProp ?? computedExtraTimeFee.totalFee;
+  const extraTimeFeeAmount = useMemo(() => {
+    const feeFromProp =
+      typeof extraTimeFeeAmountProp === 'number' && extraTimeFeeAmountProp > 0
+        ? extraTimeFeeAmountProp
+        : 0;
+    const feeFromComputed =
+      typeof computedExtraTimeFee.totalFee === 'number' &&
+      computedExtraTimeFee.totalFee > 0
+        ? computedExtraTimeFee.totalFee
+        : 0;
+
+    // Keep surcharge in total even if one source is stale.
+    return Math.max(feeFromProp, feeFromComputed);
+  }, [extraTimeFeeAmountProp, computedExtraTimeFee.totalFee]);
   const hasExtraTimeFee = extraTimeFeeAmount > 0;
   const extraMileageKm = useMemo(
     () => getExtraMileageKm(requestedMileage, maxMileage),
@@ -149,6 +168,8 @@ function RentalInfo({
     [extraMileageKm, car.extra_mileage_price]
   );
   const finalTotalPrice = totalPrice + extraTimeFeeAmount + extraMileageFee;
+  const oldTotalPrice = oldRentalTotal + extraTimeFeeAmount + extraMileageFee;
+  const showOldTotalWithDiscount = oldTotalPrice > finalTotalPrice;
 
   return (
     <>
@@ -243,46 +264,17 @@ function RentalInfo({
                 </Tooltip>
               </>
             )}
-            {extraMileageFee > 0 && (
-              <>
-                {' '}
-                <Tooltip
-                  content={`Доплата за перепробег: ${extraMileageKm.toLocaleString(
-                    'ru-RU'
-                  )} км × ${(car.extra_mileage_price || 15).toLocaleString(
-                    'ru-RU'
-                  )} ₽/км.`}
-                  placement="top"
-                  isOpen={tooltipExtraMileageOpen}
-                  onOpenChange={setTooltipExtraMileageOpen}
-                  classNames={{
-                    content: 'px-4! py-1!',
-                  }}
-                >
-                  <b
-                    className="ml-2 inline-flex items-center gap-1 cursor-pointer"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setTooltipExtraMileageOpen((o) => !o)}
-                    onKeyDown={(e) =>
-                      (e.key === 'Enter' || e.key === ' ') &&
-                      setTooltipExtraMileageOpen((o) => !o)
-                    }
-                  >
-                    +{extraMileageFee.toLocaleString('ru-RU')} ₽
-                  </b>
-                </Tooltip>
-              </>
-            )}
           </span>
         </div>
         <div className="prices">
           <span className="new-price">
             {finalTotalPrice.toLocaleString('ru-RU')} ₽
           </span>
-          <span className="old-price">
-            {calculatedPrice.toLocaleString('ru-RU')} ₽/сутки
-          </span>
+          {showOldTotalWithDiscount && (
+            <span className="old-price line-through">
+              {oldTotalPrice.toLocaleString('ru-RU')} ₽
+            </span>
+          )}
         </div>
       </div>
     </>

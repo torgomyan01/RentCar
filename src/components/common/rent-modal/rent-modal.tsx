@@ -6,6 +6,7 @@ import {
   calculateExtraTimeFee,
   EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
+import { formatPhoneMask } from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -258,8 +259,21 @@ const RentModal = ({
       }
       setIsSubmitting(true);
       setSubmitStatus(null);
+      const sourceTitle = car
+        ? 'Заявка из карточки автомобиля'
+        : 'Заявка с страницы контактов';
+      const carBlock = car
+        ? `
+🚗 *Автомобиль:*
+• Модель: ${formatCarName(car)}
+${car.year ? `• Год: ${car.year}` : ''}
+${car.color ? `• Цвет: ${car.color}` : ''}
+        `.trim()
+        : '';
       const message = `
-📋 *Заявка с страницы контактов*
+📋 *${sourceTitle}*
+
+${carBlock ? `${carBlock}\n` : ''}
 
 👤 *Клиент:*
 • Имя: ${name}
@@ -393,9 +407,29 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
       const year = date.getFullYear().toString().slice(-2);
       return `${day}.${month}.${year}`;
     };
-    const diffMs = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    return `${formatDate(startDate)} - ${formatDate(endDate)} (${diffDays} суток)`;
+    const DAY_MS = 1000 * 60 * 60 * 24;
+    const calendarStart = new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      startDate.getDate()
+    );
+    const calendarEnd = new Date(
+      endDate.getFullYear(),
+      endDate.getMonth(),
+      endDate.getDate()
+    );
+
+    const calendarDays = Math.max(
+      0,
+      Math.round((calendarEnd.getTime() - calendarStart.getTime()) / DAY_MS)
+    );
+    const startMinutes = parseClockToMinutes(startTime);
+    const endMinutes = parseClockToMinutes(endTime);
+    const hasExtraDayForTime =
+      calendarDays > 0 && endMinutes - startMinutes > 120;
+    const totalDays = Math.max(1, calendarDays + (hasExtraDayForTime ? 1 : 0));
+
+    return `${formatDate(startDate)} - ${formatDate(endDate)} (${totalDays} суток)`;
   };
 
   const getMonthName = (date: Date) => {
@@ -687,7 +721,7 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
               name="phone"
               placeholder="Введите ваш номер телефона"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => setContactPhone(formatPhoneMask(e.target.value))}
               disabled={isSubmitting}
             />
             <textarea

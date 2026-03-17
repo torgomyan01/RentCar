@@ -535,7 +535,7 @@ function Header({
                       animate: 'visible',
                     })}
                   >
-                    Долгосрочная аренда автомобилей
+                    Посуточная аренда автомобилей
                     <motion.p
                       variants={subtitleVariants}
                       {...(headerAnimation && {
@@ -560,11 +560,11 @@ function Header({
               >
                 {[
                   {
-                    label: '* Доступен с',
+                    label: '* Начало аренды',
                     value: formatDateDisplay(startDate, startTime),
                   },
                   {
-                    label: '* Доступен до',
+                    label: '* Окончание аренды',
                     value: formatDateDisplay(endDate, endTime),
                   },
                   {

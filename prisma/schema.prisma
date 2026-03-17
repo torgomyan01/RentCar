@@ -76,11 +76,23 @@ model ContactSettings {
   whatsappUrl    String?  // e.g. https://wa.me/79857396760
   telegramUrl    String?  // e.g. https://t.me/ArendaAutoMoscow
   telegramUrl2   String?  // Երրորդ սոց. հղում (optional)
-  workHours      String?  // e.g. Работаем Пн-Сб с 9:00 до 21:00
+  workHours      String?  // e.g. Работаем Пн-Вс с 9:00 до 21:00
   mapCenterLat   Float?
   mapCenterLng   Float?
   mapZoom        Int?     @default(15)
   updatedAt      DateTime @updatedAt
 
   @@map("contact_settings")
+}
+
+// Per-group configurable service prices (per day) for booking form
+model CarServicePricing {
+  groupKey          String   @id
+  calmPricePerDay   Int      @default(2000) // Пакет "Спокойствие"
+  cascoPricePerDay  Int      @default(1000) // КАСКО
+  fullCascoPricePerDay Int   @default(3000) // Полное КАСКО
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("car_service_pricing")
 }

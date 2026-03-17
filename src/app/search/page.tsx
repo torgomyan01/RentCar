@@ -13,6 +13,52 @@ import { useSearchParams } from 'next/navigation';
 import { calculateExtraTimeFee } from '@/lib/business-hours-fee';
 import { parseMileageInput } from '@/lib/mileage-pricing';
 
+function getCarMinPriceValue(car: Car): number {
+  const pricesArray = car.prices || car.price;
+
+  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
+    const values: number[] = [];
+
+    for (const priceItem of pricesArray) {
+      if (
+        priceItem &&
+        typeof priceItem === 'object' &&
+        'values' in priceItem &&
+        Array.isArray(priceItem.values)
+      ) {
+        values.push(
+          ...priceItem.values.filter(
+            (v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
+          )
+        );
+      } else if (
+        typeof priceItem === 'number' &&
+        Number.isFinite(priceItem) &&
+        priceItem > 0
+      ) {
+        values.push(priceItem);
+      }
+    }
+
+    if (values.length > 0) {
+      return Math.min(...values);
+    }
+  }
+
+  if (typeof car.price === 'number' && Number.isFinite(car.price) && car.price > 0) {
+    return car.price;
+  }
+
+  if (typeof car.price_from === 'string') {
+    const parsed = Number(car.price_from.replace(/[^\d]/g, ''));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
 function SearchPage() {
   const searchParams = useSearchParams();
   const { cars: allCars } = useAppSelector((state) => state.cars);
@@ -209,10 +255,14 @@ function SearchPage() {
     );
   }, [cars, activeTabs]);
 
-  const groupedCars = useMemo(
-    () => groupCarsByModel(filteredCars),
-    [filteredCars]
-  );
+  const groupedCars = useMemo(() => {
+    const grouped = groupCarsByModel(filteredCars);
+    return grouped.sort((a, b) => {
+      const aMin = Math.min(...a.map(getCarMinPriceValue));
+      const bMin = Math.min(...b.map(getCarMinPriceValue));
+      return aMin - bMin;
+    });
+  }, [filteredCars]);
   const allCarsByGroup = useMemo(() => {
     const grouped = new Map<string, Car[]>();
     allCars.forEach((car) => {

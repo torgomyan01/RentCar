@@ -28,11 +28,14 @@ import {
   EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
 import {
+  DEFAULT_DAILY_INCLUDED_MILEAGE,
+  DEFAULT_EXTRA_MILEAGE_PRICE_RUB,
   getExtraMileageFee,
   getExtraMileageKm,
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
+import { formatPhoneMask } from '@/lib/phone-mask';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -124,6 +127,32 @@ function extractSeatNumbers(
   return [];
 }
 
+function getRutubeEmbedUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const value = url.trim();
+  if (!value) return null;
+
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+    if (!host.includes('rutube')) return null;
+
+    const path = parsed.pathname.replace(/\/+$/, '');
+    if (path.includes('/play/embed/')) {
+      return parsed.toString();
+    }
+
+    const match = path.match(/\/video\/([a-zA-Z0-9]+)/);
+    if (match?.[1]) {
+      return `https://rutube.ru/play/embed/${match[1]}`;
+    }
+
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 // Helper function to get color class name from color string
 function getColorClass(color: string | null | undefined): string {
   if (!color) return '';
@@ -197,9 +226,95 @@ function formatDateDisplay(dateStr: string | null): string {
   }
 }
 
+function parseSeasonDayMonth(
+  value: string
+): { day: number; month: number } | null {
+  const parts = String(value || '')
+    .trim()
+    .split('.');
+  if (parts.length < 2) return null;
+  const day = Number(parts[0]);
+  const month = Number(parts[1]);
+  if (
+    !Number.isFinite(day) ||
+    !Number.isFinite(month) ||
+    day < 1 ||
+    day > 31 ||
+    month < 1 ||
+    month > 12
+  ) {
+    return null;
+  }
+  return { day, month };
+}
+
+function getActiveSeasonEndDate(
+  seasons: Array<{ start_date?: string; end_date?: string }> | null | undefined
+): Date | null {
+  if (!Array.isArray(seasons) || seasons.length === 0) return null;
+
+  const today = new Date();
+  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  for (const season of seasons) {
+    const startPart = parseSeasonDayMonth(season.start_date || '');
+    const endPart = parseSeasonDayMonth(season.end_date || '');
+    if (!startPart || !endPart) continue;
+
+    const crossesYear =
+      startPart.month > endPart.month ||
+      (startPart.month === endPart.month && startPart.day > endPart.day);
+
+    let startDate: Date;
+    let endDate: Date;
+
+    if (!crossesYear) {
+      startDate = new Date(
+        now.getFullYear(),
+        startPart.month - 1,
+        startPart.day
+      );
+      endDate = new Date(now.getFullYear(), endPart.month - 1, endPart.day);
+    } else {
+      const currentYearStart = new Date(
+        now.getFullYear(),
+        startPart.month - 1,
+        startPart.day
+      );
+      if (now >= currentYearStart) {
+        startDate = currentYearStart;
+        endDate = new Date(
+          now.getFullYear() + 1,
+          endPart.month - 1,
+          endPart.day
+        );
+      } else {
+        startDate = new Date(
+          now.getFullYear() - 1,
+          startPart.month - 1,
+          startPart.day
+        );
+        endDate = new Date(now.getFullYear(), endPart.month - 1, endPart.day);
+      }
+    }
+
+    if (now >= startDate && now <= endDate) {
+      return endDate;
+    }
+  }
+
+  return null;
+}
+
 interface ProductClientProps {
   car: Car;
   allCars: Car[];
+}
+
+interface ServicePricing {
+  calmPricePerDay: number;
+  cascoPricePerDay: number;
+  fullCascoPricePerDay: number;
 }
 
 export default function ProductClient({ car, allCars }: ProductClientProps) {
@@ -217,6 +332,9 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const startDateFromQuery = searchParams.get('start_date');
   const endDateFromQuery = searchParams.get('end_date');
   const mileageFromQuery = searchParams.get('mileage');
+  const hasSearchPeriodInQuery = Boolean(
+    startDateFromQuery && endDateFromQuery
+  );
 
   // Use GET params first, fallback to dates selected in modal
   const startDate = startDateFromQuery || selectedStartDate;
@@ -247,6 +365,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     }>
   >([]);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [groupVideoLink, setGroupVideoLink] = useState('');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
   const mediaFetchedRef = useRef<Set<string>>(new Set());
@@ -260,6 +379,12 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' });
+  const [carDetails, setCarDetails] = useState<Car | null>(null);
+  const [servicePricing, setServicePricing] = useState<ServicePricing>({
+    calmPricePerDay: 2000,
+    cascoPricePerDay: 1000,
+    fullCascoPricePerDay: 3000,
+  });
 
   const rentalDays = useMemo(
     () => calculateDays(startDate, endDate),
@@ -267,17 +392,65 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   );
 
   const requestedMileage = useMemo(() => parseMileageInput(mileage), [mileage]);
+  const resolvedCar = useMemo(
+    () => (carDetails ? { ...car, ...carDetails } : car),
+    [car, carDetails]
+  );
   const includedMileage = useMemo(() => {
-    return getIncludedMileageLimit(rentalDays, car?.extra_mileage_km);
-  }, [rentalDays, car?.extra_mileage_km]);
+    return getIncludedMileageLimit(rentalDays, resolvedCar?.extra_mileage_km);
+  }, [rentalDays, resolvedCar?.extra_mileage_km]);
   const extraMileageKm = useMemo(
     () => getExtraMileageKm(requestedMileage, includedMileage),
     [requestedMileage, includedMileage]
   );
   const extraMileageFee = useMemo(
-    () => getExtraMileageFee(extraMileageKm, car?.extra_mileage_price),
-    [extraMileageKm, car?.extra_mileage_price]
+    () => getExtraMileageFee(extraMileageKm, resolvedCar?.extra_mileage_price),
+    [extraMileageKm, resolvedCar?.extra_mileage_price]
   );
+  const perDayMileageLimit = useMemo(() => {
+    const value = resolvedCar?.extra_mileage_km;
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return Math.floor(value);
+    }
+    return DEFAULT_DAILY_INCLUDED_MILEAGE;
+  }, [resolvedCar?.extra_mileage_km]);
+  const mileageLimitDisplay = useMemo(() => {
+    if (startDate && endDate && rentalDays > 0) {
+      return `${includedMileage.toLocaleString('ru-RU')} км`;
+    }
+    return `${perDayMileageLimit.toLocaleString('ru-RU')} км/сутки`;
+  }, [startDate, endDate, rentalDays, includedMileage, perDayMileageLimit]);
+  const extraMileagePricePerKm = useMemo(() => {
+    const value = resolvedCar?.extra_mileage_price;
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+    return DEFAULT_EXTRA_MILEAGE_PRICE_RUB;
+  }, [resolvedCar?.extra_mileage_price]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchCarDetails = async () => {
+      if (!car?.id) return;
+      try {
+        const response = await fetch(`/api/cars/${car.id}/data`);
+        if (!response.ok) return;
+
+        const data: { car?: Car } = await response.json();
+        if (!cancelled && data.car) {
+          setCarDetails(data.car);
+        }
+      } catch (error) {
+        console.error('Failed to fetch car_data_with_bookings:', error);
+      }
+    };
+
+    fetchCarDetails();
+    return () => {
+      cancelled = true;
+    };
+  }, [car?.id]);
 
   // Group cars by model (same car, different colors and years)
   const carGroup = useMemo(() => {
@@ -345,6 +518,37 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return key;
   }, [carGroup]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchServicePricing = async () => {
+      if (!groupKey) return;
+      try {
+        const encodedGroupKey = encodeURIComponent(groupKey);
+        const response = await fetch(
+          `/api/cars/service-pricing/${encodedGroupKey}`
+        );
+        if (!response.ok) return;
+
+        const data: Partial<ServicePricing> = await response.json();
+        if (!cancelled) {
+          setServicePricing({
+            calmPricePerDay: Number(data?.calmPricePerDay ?? 2000),
+            cascoPricePerDay: Number(data?.cascoPricePerDay ?? 1000),
+            fullCascoPricePerDay: Number(data?.fullCascoPricePerDay ?? 3000),
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch service pricing:', error);
+      }
+    };
+
+    fetchServicePricing();
+    return () => {
+      cancelled = true;
+    };
+  }, [groupKey]);
+
   // Fetch group media
   const fetchGroupMedia = useCallback(async (key: string) => {
     // Prevent duplicate fetches
@@ -372,6 +576,30 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       fetchGroupMedia(groupKey);
     }
   }, [groupKey, fetchGroupMedia]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchVideoLink = async () => {
+      if (!groupKey) return;
+      try {
+        const encodedGroupKey = encodeURIComponent(groupKey);
+        const response = await fetch(`/api/cars/${encodedGroupKey}/video-link`);
+        if (!response.ok) return;
+        const data: { url?: string } = await response.json();
+        if (!cancelled) {
+          setGroupVideoLink((data?.url || '').trim());
+        }
+      } catch (error) {
+        console.error('Error fetching video link:', error);
+      }
+    };
+
+    fetchVideoLink();
+    return () => {
+      cancelled = true;
+    };
+  }, [groupKey]);
 
   // Get unique colors from car group
   const uniqueColors = useMemo(() => {
@@ -422,8 +650,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   }, [carGroup]);
 
   const prices = useMemo(() => {
-    return extractPrices(car);
-  }, [car]);
+    return extractPrices(resolvedCar);
+  }, [resolvedCar]);
 
   const priceRanges = [
     { label: '1-2 дня', price: prices[0] },
@@ -432,6 +660,22 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     { label: '15-30 дней', price: prices[3] },
     { label: '30 + дней', price: prices[4] },
   ];
+  const tariffValidUntilText = useMemo(() => {
+    const seasons = Array.isArray((resolvedCar as any)?.seasons)
+      ? ((resolvedCar as any).seasons as Array<{
+          start_date?: string;
+          end_date?: string;
+        }>)
+      : [];
+    const endDate = getActiveSeasonEndDate(seasons);
+    if (!endDate) return null;
+
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(endDate);
+  }, [resolvedCar]);
 
   // Calculate price based on rental days
   const getPriceForDays = (days: number): number => {
@@ -447,56 +691,64 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return getPriceForDays(rentalDays) * rentalDays;
   }, [rentalDays, prices]);
 
-  const additionalOptions = [
-    {
-      id: 'peace-package',
-      name: 'Доп. водитель',
-      price: 5000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-    {
-      id: 'booster',
-      name: 'Пакет "Спокойствие"',
-      price: 2000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-    {
-      id: 'casco',
-      name: 'Детское кресло',
-      price: 2000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-    {
-      id: 'child-seat',
-      name: 'КАСКО ',
-      price: 1000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-    {
-      id: 'casco-no-franchise',
-      name: 'Аренда бустера',
-      price: 15000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-    {
-      id: 'extra-driver',
-      name: 'Полное КАСКО',
-      price: 3000,
-      tooltip:
-        'Это самый дорогостоящий, но и самый надёжный вариант. Страховая компания покрывает расходы в случае угона, ущерба, хищения и несчастного случая. Возмещается ущерб и в том случае, когда ДТП произошло по вине страхователя',
-    },
-  ];
+  const additionalOptions = useMemo(() => {
+    return [
+      {
+        id: 'peace-package',
+        name: 'Доп. водитель',
+        price: 1000,
+        tooltip:
+          '',
+        showTooltip: false,
+      },
+      {
+        id: 'booster',
+        name: 'Пакет "Спокойствие"',
+        price: servicePricing.calmPricePerDay * rentalDays,
+        tooltip:
+          'Опция подразумевает освобождение от ответственности за повреждение лобового стекла, стекла фар, бокового стекла и стекла двери транспортного средства в размере его стоимости и работ по замене, освобождение от ответственности за повреждение и утрату шин и дисков.',
+        showTooltip: true,
+      },
+      {
+        id: 'casco',
+        name: 'Детское кресло',
+        price: 1000,
+        tooltip:
+          '',
+        showTooltip: false,
+      },
+      {
+        id: 'child-seat',
+        name: 'КАСКО ',
+        price: servicePricing.cascoPricePerDay * rentalDays,
+        tooltip:
+          'Опция снижает финансовую ответственность Арендатора до 100.000 рублей. В случае повреждения автомобиля или невозврата по своей вине, либо обоюдной вине, либо если виновное лицо не установлено: если ущерб автомобилю не превышает франшизу 100.000 рублей, то Арендатор возмещает размер причиненного ущерба; если ущерб автомобилю превышает франшизу 100.000 рублей, то арендатор выплачивает сумму в размере франшизы; опция покрывает ущерб при наличии надлежащего оформления документов из правоохранительных органов и возврата ключей и документов на автомобиль. Опция не покрывает химчистку салона.',
+        showTooltip: true,
+      },
+      {
+        id: 'casco-no-franchise',
+        name: 'Аренда бустера',
+        price: 1000,
+        tooltip:
+          '',
+        showTooltip: false,
+      },
+      {
+        id: 'extra-driver',
+        name: 'Полное КАСКО',
+        price: servicePricing.fullCascoPricePerDay * rentalDays,
+        tooltip:
+          'Опция покрывает ущерб, возникший в результате угона или повреждения автомобиля. Опция покрывает ущерб при наличии надлежащего оформления документов из правоохранительных органов и возврата ключей и документов на автомобиль. Опция не покрывает химчистку салона.',
+        showTooltip: true,
+      },
+    ];
+  }, [rentalDays, servicePricing]);
 
   const totalAdditionalPrice = useMemo(() => {
     return additionalOptions.reduce((sum, option) => {
       return sum + (selectedOptions[option.id] ? option.price : 0);
     }, 0);
-  }, [selectedOptions]);
+  }, [selectedOptions, additionalOptions]);
 
   // Get selected options for display
   const selectedOptionsList = useMemo(() => {
@@ -521,14 +773,26 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 
   const totalPrice =
     rentalPrice + totalAdditionalPrice + extraTimeFee + extraMileageFee;
-  const deposit = 5000;
-  const finalTotalWithDeposit = totalPrice + deposit;
+  const deposit = useMemo(() => {
+    if (
+      typeof resolvedCar?.deposit === 'number' &&
+      Number.isFinite(resolvedCar.deposit)
+    ) {
+      return resolvedCar.deposit;
+    }
+    return null;
+  }, [resolvedCar?.deposit]);
+  const depositAmount = deposit ?? 0;
+  const depositDisplay =
+    deposit !== null ? `${deposit.toLocaleString('ru-RU')} ₽` : '—';
+  const finalTotalWithDeposit = totalPrice + depositAmount;
   const oldTotalWithDeposit =
     oldRentalPrice +
     totalAdditionalPrice +
     extraTimeFee +
     extraMileageFee +
-    deposit;
+    depositAmount;
+  const showOldTotalWithDiscount = oldTotalWithDeposit > finalTotalWithDeposit;
 
   const handleOptionToggle = (optionId: string) => {
     // Страховки: можно выбрать только одну из трёх — Пакет "Спокойствие", КАСКО, Полное КАСКО
@@ -628,14 +892,6 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       const carDetails = `
 🚗 *Автомобиль:*
 • Модель: ${formatCarName(randomCar)}
-• Год: ${randomCar.year || '—'}
-• Цвет: ${randomCar.color || '—'}
-• КПП: ${formatTransmission(randomCar.transmission)}
-• Топливо: ${formatFuel(randomCar.fuel)}
-• Привод: ${formatDriveUnit(randomCar.drive_unit)}
-• Объем двигателя: ${randomCar.engine_capacity || '—'} л
-• Класс: ${randomCar.car_class || '—'}
-• Тип: ${randomCar.car_type || '—'}
 • ID: ${randomCar.id || '—'}
 • Код: ${randomCar.code || '—'}
       `.trim();
@@ -673,7 +929,7 @@ ${selectedOptionsText ? `• Дополнительные опции:\n${selecte
           ? `${extraMileageKm.toLocaleString('ru-RU')} км (+ ${extraMileageFee.toLocaleString('ru-RU')} ₽)`
           : 'нет'
       }
-• Депозит: ${deposit.toLocaleString('ru-RU')} ₽
+• Депозит: ${depositDisplay}
 • Итого: ${totalPrice.toLocaleString('ru-RU')} ₽
       `.trim();
 
@@ -747,7 +1003,7 @@ ${pricingInfo}
     rentalPrice,
     selectedOptionsList,
     totalPrice,
-    deposit,
+    depositDisplay,
     extraTimeFee,
     extraTimeFeeInfo.eventsCount,
     carGroup,
@@ -755,7 +1011,7 @@ ${pricingInfo}
     formatDateForAPI,
   ]);
 
-  const carName = formatCarName(car);
+  const carName = formatCarName(resolvedCar);
 
   // Get images from group media, fallback to car images
   const carImages = useMemo(() => {
@@ -769,17 +1025,12 @@ ${pricingInfo}
 
     // Fallback to car images
     return [
-      getCarImage(car, 0),
-      getCarImage(car, 1),
-      getCarImage(car, 2),
-      getCarImage(car, 3),
+      getCarImage(resolvedCar, 0),
+      getCarImage(resolvedCar, 1),
+      getCarImage(resolvedCar, 2),
+      getCarImage(resolvedCar, 3),
     ].filter((image) => !image.includes('rentprog'));
-  }, [groupMedia, car]);
-
-  // Get video from group media
-  const groupVideo = useMemo(() => {
-    return groupMedia.find((m) => m.type === 'video');
-  }, [groupMedia]);
+  }, [groupMedia, resolvedCar]);
 
   // Սբռոս gallery loading при смене машины
   useEffect(() => {
@@ -800,12 +1051,13 @@ ${pricingInfo}
   }, []);
 
   const handleVideoClick = () => {
-    if (groupVideo) {
+    if (groupVideoLink) {
       setVideoReady(false);
-      setVideoUrl(getServerImageUrl(groupVideo.filePath));
+      setVideoUrl(groupVideoLink);
       setIsVideoModalOpen(true);
     }
   };
+  const rutubeEmbedUrl = useMemo(() => getRutubeEmbedUrl(videoUrl), [videoUrl]);
 
   const parseDateTimeForModal = (dateTime: string | null) => {
     if (!dateTime) return null;
@@ -843,6 +1095,7 @@ ${pricingInfo}
   const handleFindCarsSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!startDate || !endDate) {
+      // If dates are missing, open modal only to fill the inputs
       handleFindCarsDateClick();
       return;
     }
@@ -908,7 +1161,7 @@ ${pricingInfo}
                 >
                   {carImages.map((image, index) => (
                     <SwiperSlide key={index} className="h-[400px]">
-                      {index === 0 && groupVideo && (
+                      {index === 0 && groupVideoLink && (
                         <div
                           className="play"
                           onClick={handleVideoClick}
@@ -958,30 +1211,34 @@ ${pricingInfo}
             <ul className="tooltip-list">
               <li>
                 <span className="grey">Год выпуска</span>
-                <span className="black">{yearRange || car.year || '—'}</span>
+                <span className="black">
+                  {yearRange || resolvedCar.year || '—'}
+                </span>
               </li>
               <li>
                 <span className="grey">Коробка</span>
                 <span className="black">
-                  {formatTransmission(car.transmission)}
+                  {formatTransmission(resolvedCar.transmission)}
                 </span>
               </li>
               <li>
                 <span className="grey">Топливо</span>
-                <span className="black">{formatFuel(car.fuel)}</span>
+                <span className="black">{formatFuel(resolvedCar.fuel)}</span>
               </li>
               <li>
                 <span className="grey">Мощность</span>
                 <span className="black">
-                  {car.power || car.engine_power
-                    ? `${car.power || car.engine_power} л.с`
+                  {resolvedCar.power || resolvedCar.engine_power
+                    ? `${resolvedCar.power || resolvedCar.engine_power} л.с`
                     : '—'}
                 </span>
               </li>
               <li>
                 <span className="grey">Объем двигателя</span>
                 <span className="black">
-                  {car.engine_capacity ? `${car.engine_capacity} л.` : '—'}
+                  {resolvedCar.engine_capacity
+                    ? `${resolvedCar.engine_capacity} л.`
+                    : '—'}
                 </span>
               </li>
               <li>
@@ -991,7 +1248,7 @@ ${pricingInfo}
               <li>
                 <span className="grey">Привод</span>
                 <span className="black">
-                  {formatDriveUnit(car.drive_unit || car.drive)}
+                  {formatDriveUnit(resolvedCar.drive_unit || resolvedCar.drive)}
                 </span>
               </li>
               <li>
@@ -1005,10 +1262,10 @@ ${pricingInfo}
                         title={color || undefined}
                       ></span>
                     ))
-                  ) : car.color ? (
+                  ) : resolvedCar.color ? (
                     <span
-                      className={getColorClass(car.color)}
-                      title={car.color || undefined}
+                      className={getColorClass(resolvedCar.color)}
+                      title={resolvedCar.color || undefined}
                     ></span>
                   ) : (
                     '—'
@@ -1027,16 +1284,18 @@ ${pricingInfo}
                 </li>
               ))}
             </ul>
-            <div className="info-texts">
-              <img src="/img/info-img.svg" alt="" />
-              <p>
-                <span className="red-text">Внимание!</span> Текущий тариф
-                действует до 26 февраля 2026 года включительно
-              </p>
-            </div>
+            {tariffValidUntilText && (
+              <div className="info-texts">
+                <img src="/img/info-img.svg" alt="" />
+                <p>
+                  <span className="red-text">Внимание!</span> Текущий тариф
+                  действует до {tariffValidUntilText} включительно
+                </p>
+              </div>
+            )}
           </div>
 
-          {startDate && endDate ? (
+          {hasSearchPeriodInQuery ? (
             <div className="rent-layout">
               <div className="rent-options">
                 {startDate && endDate && (
@@ -1070,8 +1329,8 @@ ${pricingInfo}
                 <div className="row">
                   <span>Перепробег</span>
                   <b>
-                    {car.extra_mileage_price
-                      ? `${car.extra_mileage_price.toLocaleString('ru-RU')} ₽ / км`
+                    {resolvedCar.extra_mileage_price
+                      ? `${resolvedCar.extra_mileage_price.toLocaleString('ru-RU')} ₽ / км`
                       : '15 ₽ / км'}
                   </b>
                 </div>
@@ -1091,20 +1350,22 @@ ${pricingInfo}
                         <h4>
                           {option.name}
 
-                          <Tooltip
-                            content={
-                              <div className="tooltip2">
-                                <h3>{option.name}</h3>
-                                <span>{option.tooltip}</span>
-                              </div>
-                            }
-                            placement="top"
-                            classNames={{
-                              content: 'px-4! py-1! max-w-[200px]!',
-                            }}
-                          >
-                            <img src="/img/tooltip-icon.svg" alt="" />
-                          </Tooltip>
+                          {option.showTooltip && (
+                            <Tooltip
+                              content={
+                                <div className="tooltip2">
+                                  <h3>{option.name}</h3>
+                                  <span>{option.tooltip}</span>
+                                </div>
+                              }
+                              placement="top"
+                              classNames={{
+                                content: 'px-4! py-1! max-w-[260px]!',
+                              }}
+                            >
+                              <img src="/img/tooltip-icon.svg" alt="" />
+                            </Tooltip>
+                          )}
                         </h4>
                         <b>{option.price.toLocaleString('ru-RU')} ₽</b>
                       </div>
@@ -1123,7 +1384,7 @@ ${pricingInfo}
                   </li>
                   <li>
                     <span>Набор документов:</span>
-                    <b>Паспорт, водительское удостоверение, ИНН или СНИЛС</b>
+                    <b>Паспорт, водительское удостоверение</b>
                   </li>
                 </ul>
               </div>
@@ -1131,7 +1392,40 @@ ${pricingInfo}
               <div className="rent-summary">
                 <div className="sum-row">
                   <span>Аренда</span>
-                  <b>{rentalPrice.toLocaleString('ru-RU')} ₽</b>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    {oldRentalPrice > rentalPrice && (
+                      <>
+                        <span
+                          style={{
+                            textDecoration: 'line-through',
+                            opacity: 0.65,
+                            fontSize: 13,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {oldRentalPrice.toLocaleString('ru-RU')} ₽
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: '#d9534f',
+                            fontWeight: 500,
+                          }}
+                        >
+                          Скидка по тарифу
+                        </span>
+                      </>
+                    )}
+                    <b>{rentalPrice.toLocaleString('ru-RU')} ₽</b>
+                  </div>
                 </div>
 
                 {/* Display selected options */}
@@ -1168,15 +1462,17 @@ ${pricingInfo}
 
                 <div className="sum-row">
                   <span>Депозит</span>
-                  <b>{deposit.toLocaleString('ru-RU')} ₽</b>
+                  <b>{depositDisplay}</b>
                 </div>
                 <p className="totla-text">
                   Итоговая стоимость аренды автомобиля:
                 </p>
                 <div className="total">
-                  <div className="old">
-                    {oldTotalWithDeposit.toLocaleString('ru-RU')} ₽
-                  </div>
+                  {showOldTotalWithDiscount && (
+                    <div className="old">
+                      {oldTotalWithDeposit.toLocaleString('ru-RU')} ₽
+                    </div>
+                  )}
                   <div className="new" id="totalPrice">
                     {finalTotalWithDeposit.toLocaleString('ru-RU')} ₽
                   </div>
@@ -1193,7 +1489,7 @@ ${pricingInfo}
                   type="tel"
                   placeholder="Введите номер телефона"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
                   disabled={isSubmitting}
                 />
 
@@ -1239,74 +1535,99 @@ ${pricingInfo}
               </div>
             </div>
           ) : (
-            <div className="find-cars">
-              <h2>ознакомьтесь с тарифами на другие даты</h2>
-              <p>
-                Для ознакомления с тарифами на другие даты воспользуйтесь формой
-                подбора свободного авто
-              </p>
-              <form className="find-cars-form" onSubmit={handleFindCarsSubmit}>
-                <div className="input-wrap">
-                  <span>* Доступен с</span>
-                  <button
-                    type="button"
-                    className="date text-left"
-                    onClick={handleFindCarsDateClick}
-                    style={{
-                      width: '100%',
-                      border: 'none',
-                      background: 'transparent',
-                      padding: 0,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {startDate
-                      ? formatDateDisplay(startDate)
-                      : 'Выберите дату и время'}
-                  </button>
+            <>
+              <div className="w-full border-t border-gray-200 py-6 sm:py-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
+                  <span>Залог</span>
+                  <b className="text-[18px] sm:text-[21px] text-right">
+                    {depositDisplay}
+                  </b>
                 </div>
-                <div className="input-wrap">
-                  <span>* Доступен до</span>
-                  <button
-                    type="button"
-                    className="date text-left"
-                    onClick={handleFindCarsDateClick}
-                    style={{
-                      width: '100%',
-                      border: 'none',
-                      background: 'transparent',
-                      padding: 0,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {endDate
-                      ? formatDateDisplay(endDate)
-                      : 'Выберите дату и время'}
-                  </button>
+                <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
+                  <span>Лимит пробега</span>
+                  <b className="text-[18px] sm:text-[21px] text-right">
+                    {mileageLimitDisplay}
+                  </b>
                 </div>
-                <div className="input-wrap">
-                  <div className="top">
-                    <span>Пробег поездки</span>
-                    <a href="https://trace.ati.su/" target="_blank">
-                      Как рассчитать?
-                    </a>
+                <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
+                  <span>Цена 1км перепробега</span>
+                  <b className="text-[18px] sm:text-[21px] text-right">
+                    {extraMileagePricePerKm.toLocaleString('ru-RU')} ₽ / км
+                  </b>
+                </div>
+              </div>
+              <div className="find-cars">
+                <h2>ознакомьтесь с тарифами на другие даты</h2>
+                <p>
+                  Для ознакомления с тарифами на другие даты воспользуйтесь
+                  формой подбора свободного авто
+                </p>
+                <form
+                  className="find-cars-form"
+                  onSubmit={handleFindCarsSubmit}
+                >
+                  <div className="input-wrap">
+                    <span>* Доступен с</span>
+                    <button
+                      type="button"
+                      className="date text-left"
+                      onClick={() => handleFindCarsDateClick()}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        padding: 0,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {startDate
+                        ? formatDateDisplay(startDate)
+                        : 'Выберите дату и время'}
+                    </button>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Укажите пробег"
-                    value={mileage}
-                    onChange={handleMileageChange}
-                  />
-                  <span className="info-text">
-                    <img src="/img/info-icon.svg" alt="" />
-                    <span>Общий пробег влияет на стоимость поездки</span>
-                  </span>
-                </div>
-                <button className="red-btn" type="submit">
-                  Найти свободные авто
-                </button>
-              </form>
-            </div>
+                  <div className="input-wrap">
+                    <span>* Доступен до</span>
+                    <button
+                      type="button"
+                      className="date text-left"
+                      onClick={() => handleFindCarsDateClick()}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        padding: 0,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {endDate
+                        ? formatDateDisplay(endDate)
+                        : 'Выберите дату и время'}
+                    </button>
+                  </div>
+                  <div className="input-wrap">
+                    <div className="top">
+                      <span>Пробег поездки</span>
+                      <a href="https://trace.ati.su/" target="_blank">
+                        Как рассчитать?
+                      </a>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Укажите пробег"
+                      value={mileage}
+                      onChange={handleMileageChange}
+                    />
+                    <span className="info-text">
+                      <img src="/img/info-icon.svg" alt="" />
+                      <span>Общий пробег влияет на стоимость поездки</span>
+                    </span>
+                  </div>
+                  <button className="red-btn" type="submit">
+                    Найти свободные авто
+                  </button>
+                </form>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -1434,7 +1755,7 @@ ${pricingInfo}
             {/* Video Container */}
             <div className="relative w-full bg-black">
               {/* Loading overlay while видео подготавливается */}
-              {!videoReady && (
+              {!videoReady && !rutubeEmbedUrl && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/60">
                   <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-400 border-t-red-600" />
                   <span className="text-sm font-medium text-gray-200">
@@ -1443,21 +1764,31 @@ ${pricingInfo}
                 </div>
               )}
 
-              <video
-                src={getServerImageUrl(videoUrl)}
-                className={`w-full h-auto max-h-[85vh] object-contain transition-opacity duration-200 ${
-                  videoReady ? 'opacity-100' : 'opacity-0'
-                }`}
-                controls
-                autoPlay
-                muted
-                playsInline
-                preload="auto"
-                onCanPlay={() => setVideoReady(true)}
-                style={{
-                  minHeight: '400px',
-                }}
-              />
+              {rutubeEmbedUrl ? (
+                <iframe
+                  src={rutubeEmbedUrl}
+                  className="w-full h-[75vh]"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  title="Видео обзор машины"
+                />
+              ) : (
+                <video
+                  src={getServerImageUrl(videoUrl)}
+                  className={`w-full h-auto max-h-[85vh] object-contain transition-opacity duration-200 ${
+                    videoReady ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  preload="auto"
+                  onCanPlay={() => setVideoReady(true)}
+                  style={{
+                    minHeight: '400px',
+                  }}
+                />
+              )}
 
               {/* Decorative gradient overlay */}
               <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>

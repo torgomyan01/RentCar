@@ -9,7 +9,7 @@ const DEFAULTS = {
   whatsappUrl: 'https://wa.me/79857396760',
   telegramUrl: 'https://t.me/ArendaAutoMoscow',
   telegramUrl2: 'https://t.me/aaaallleeexxxx',
-  workHours: 'Работаем Пн-Сб с 9:00 до 21:00',
+  workHours: 'Работаем Пн-Вс с 9:00 до 21:00',
   mapCenterLat: 55.751574,
   mapCenterLng: 37.573856,
   mapZoom: 15,

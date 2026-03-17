@@ -1,6 +1,7 @@
 import { getActiveReviews } from '@/app/actions/reviews';
 import ReviewSlider from './review-slider';
 import ReviewNavigation from './review-navigation';
+import Link from 'next/link';
 
 export default async function ReviewBlock() {
   const reviews = await getActiveReviews();
@@ -10,7 +11,12 @@ export default async function ReviewBlock() {
       <div className="container">
         <div className="title-wrap">
           <h2>о нас говорят</h2>
-          <img src="/img/avito-review.svg" alt="" className="rev-logo" />
+          <Link
+            href="https://www.avito.ru/brands/i183494182?src=sharing"
+            target="_blank"
+          >
+            <img src="/img/avito-review.svg" alt="" className="rev-logo" />
+          </Link>
           <div className="text-style">
             <img src="/img/style-icon.png" alt="" />
             <span>Отзывы</span>

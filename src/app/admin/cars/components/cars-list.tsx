@@ -21,6 +21,12 @@ interface CarGroup {
   maxPrice: number | null;
 }
 
+interface ServicePricing {
+  calmPricePerDay: number;
+  cascoPricePerDay: number;
+  fullCascoPricePerDay: number;
+}
+
 export default function CarsList({ initialCars }: CarsListProps) {
   const [cars] = useState<Car[]>(initialCars);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +46,19 @@ export default function CarsList({ initialCars }: CarsListProps) {
     }>
   >([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
+  const [rutubeUrl, setRutubeUrl] = useState('');
+  const [savingRutubeLink, setSavingRutubeLink] = useState(false);
+  const [deletingRutubeLink, setDeletingRutubeLink] = useState(false);
+  const [groupPricing, setGroupPricing] = useState<ServicePricing>({
+    calmPricePerDay: 2000,
+    cascoPricePerDay: 1000,
+    fullCascoPricePerDay: 3000,
+  });
+  const [savingGroupPricing, setSavingGroupPricing] = useState(false);
+  const imageMedia = useMemo(
+    () => groupMedia.filter((item) => item.type === 'image'),
+    [groupMedia]
+  );
 
   // Group cars by model name
   const carGroups = useMemo(() => {
@@ -208,6 +227,41 @@ export default function CarsList({ initialCars }: CarsListProps) {
     }
   }, [selectedGroup, isModalOpen, activeTab]);
 
+  // Fetch Rutube video link for selected group
+  useEffect(() => {
+    if (!selectedGroup || !isModalOpen || activeTab !== 'media') return;
+
+    const encodedGroupKey = encodeURIComponent(selectedGroup.key);
+    fetch(`/api/admin/cars/${encodedGroupKey}/video-link`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRutubeUrl(String(data?.url || ''));
+      })
+      .catch((error) => {
+        console.error('Error fetching rutube link:', error);
+        setRutubeUrl('');
+      });
+  }, [selectedGroup, isModalOpen, activeTab]);
+
+  // Fetch per-group service pricing for selected group
+  useEffect(() => {
+    if (!selectedGroup || !isModalOpen || activeTab !== 'cars') return;
+
+    const query = encodeURIComponent(selectedGroup.key);
+    fetch(`/api/admin/car-service-pricing?groupKey=${query}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setGroupPricing({
+          calmPricePerDay: Number(data?.calmPricePerDay ?? 2000),
+          cascoPricePerDay: Number(data?.cascoPricePerDay ?? 1000),
+          fullCascoPricePerDay: Number(data?.fullCascoPricePerDay ?? 3000),
+        });
+      })
+      .catch((error) => {
+        console.error('Error fetching service pricing:', error);
+      });
+  }, [selectedGroup, isModalOpen, activeTab]);
+
   const fetchGroupMedia = async (groupKey: string) => {
     setLoadingMedia(true);
     try {
@@ -281,6 +335,88 @@ export default function CarsList({ initialCars }: CarsListProps) {
     } catch (error) {
       console.error('Error setting main media:', error);
       alert('Ошибка при смене главного фото');
+    }
+  };
+
+  const handleSaveRutubeLink = async () => {
+    if (!selectedGroup) return;
+    const encodedGroupKey = encodeURIComponent(selectedGroup.key);
+    const url = rutubeUrl.trim();
+
+    setSavingRutubeLink(true);
+    try {
+      const response = await fetch(`/api/admin/cars/${encodedGroupKey}/video-link`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.error || 'Ошибка сохранения ссылки на видео');
+      }
+    } catch (error) {
+      console.error('Error saving rutube link:', error);
+      alert('Ошибка сохранения ссылки на видео');
+    } finally {
+      setSavingRutubeLink(false);
+    }
+  };
+
+  const handleDeleteRutubeLink = async () => {
+    if (!selectedGroup) return;
+    const encodedGroupKey = encodeURIComponent(selectedGroup.key);
+
+    setDeletingRutubeLink(true);
+    try {
+      const response = await fetch(`/api/admin/cars/${encodedGroupKey}/video-link`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.error || 'Ошибка удаления ссылки на видео');
+        return;
+      }
+      setRutubeUrl('');
+    } catch (error) {
+      console.error('Error deleting rutube link:', error);
+      alert('Ошибка удаления ссылки на видео');
+    } finally {
+      setDeletingRutubeLink(false);
+    }
+  };
+
+  const handlePricingChange = (field: keyof ServicePricing, value: string) => {
+    const parsed = Number(value.replace(/[^\d]/g, ''));
+    setGroupPricing((prev) => ({
+      ...prev,
+      [field]: Number.isFinite(parsed) ? parsed : 0,
+    }));
+  };
+
+  const handleSavePricing = async () => {
+    if (!selectedGroup?.key) return;
+
+    setSavingGroupPricing(true);
+    try {
+      const response = await fetch('/api/admin/car-service-pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupKey: selectedGroup.key,
+          calmPricePerDay: groupPricing.calmPricePerDay,
+          cascoPricePerDay: groupPricing.cascoPricePerDay,
+          fullCascoPricePerDay: groupPricing.fullCascoPricePerDay,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.error || 'Ошибка сохранения цен услуг');
+      }
+    } catch (error) {
+      console.error('Error saving service pricing:', error);
+      alert('Ошибка сохранения цен услуг');
+    } finally {
+      setSavingGroupPricing(false);
     }
   };
 
@@ -603,13 +739,75 @@ export default function CarsList({ initialCars }: CarsListProps) {
 
               {/* Cars Tab */}
               {activeTab === 'cars' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {selectedGroup.cars.map((car) => (
-                    <div
-                      key={car.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                <div>
+                  <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <div className="text-sm font-semibold text-indigo-900 mb-3">
+                      Цены услуг для всей группы (за сутки)
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-1">
+                          Спокойствие
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={groupPricing.calmPricePerDay}
+                          onChange={(e) =>
+                            handlePricingChange('calmPricePerDay', e.target.value)
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-1">
+                          КАСКО
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={groupPricing.cascoPricePerDay}
+                          onChange={(e) =>
+                            handlePricingChange('cascoPricePerDay', e.target.value)
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-1">
+                          Полное КАСКО
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={groupPricing.fullCascoPricePerDay}
+                          onChange={(e) =>
+                            handlePricingChange(
+                              'fullCascoPricePerDay',
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSavePricing}
+                      disabled={savingGroupPricing}
+                      className="mt-3 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-60"
                     >
-                      <div className="flex items-start gap-3">
+                      {savingGroupPricing ? 'Сохранение...' : 'Сохранить цены группы'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {selectedGroup.cars.map((car) => (
+                      <div
+                        key={car.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                      >
+                        <div className="flex items-start gap-3">
                         {(car.image || car.avatar_url) && (
                           <img
                             src={getServerImageUrl(car.image || car.avatar_url)}
@@ -674,8 +872,9 @@ export default function CarsList({ initialCars }: CarsListProps) {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -683,8 +882,42 @@ export default function CarsList({ initialCars }: CarsListProps) {
               {activeTab === 'media' && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Медиа файлы
+                    Изображения и видео-ссылка
                   </h3>
+
+                  <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <label className="block text-sm font-medium text-gray-800 mb-2">
+                      Ссылка на видео RuTube (для всей группы)
+                    </label>
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://rutube.ru/video/..."
+                        value={rutubeUrl}
+                        onChange={(e) => setRutubeUrl(e.target.value)}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveRutubeLink}
+                        disabled={savingRutubeLink || !rutubeUrl.trim()}
+                        className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-60"
+                      >
+                        {savingRutubeLink ? 'Сохранение...' : 'Сохранить ссылку'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteRutubeLink}
+                        disabled={deletingRutubeLink || !rutubeUrl.trim()}
+                        className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60"
+                      >
+                        {deletingRutubeLink ? 'Удаление...' : 'Удалить ссылку'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      Загрузка видеофайла отключена. Используется только ссылка RuTube.
+                    </p>
+                  </div>
 
                   {/* Upload Component */}
                   <div className="mb-6">
@@ -700,15 +933,15 @@ export default function CarsList({ initialCars }: CarsListProps) {
                       <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
                       <p className="text-sm text-gray-600 mt-2">Загрузка...</p>
                     </div>
-                  ) : groupMedia.length === 0 ? (
+                  ) : imageMedia.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <i className="fas fa-images text-4xl mb-2"></i>
-                      <p>Медиа файлы не загружены</p>
+                      <p>Изображения не загружены</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {groupMedia.map((media) => {
-                        const firstImage = groupMedia.find(
+                      {imageMedia.map((media) => {
+                        const firstImage = imageMedia.find(
                           (item) => item.type === 'image'
                         );
                         const isMainImage =
@@ -724,7 +957,6 @@ export default function CarsList({ initialCars }: CarsListProps) {
                                 Главное
                               </div>
                             )}
-                          {media.type === 'image' ? (
                             <img
                               src={getServerImageUrl(media.filePath)}
                               alt={media.fileName}
@@ -734,16 +966,9 @@ export default function CarsList({ initialCars }: CarsListProps) {
                                   '/img/no-image.png';
                               }}
                             />
-                          ) : (
-                            <video
-                              src={getServerImageUrl(media.filePath)}
-                              className="w-full h-48 object-cover"
-                              controls
-                            />
-                          )}
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                             <div className="flex flex-col gap-2">
-                              {media.type === 'image' && !isMainImage && (
+                              {!isMainImage && (
                                 <button
                                   onClick={() => handleSetMainMedia(media.id)}
                                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"

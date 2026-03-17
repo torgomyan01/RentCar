@@ -1593,6 +1593,7 @@ a {
   }
   .rental-item {
     max-width: 320px;
+    min-height: 300px;
     width: 100%;
     padding: 40px;
     border-radius: 15px;
@@ -3105,4 +3106,9 @@ a {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+.swiper-button-prev,
+.swiper-button-next {
+  pointer-events: initial !important;
 }

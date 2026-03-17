@@ -61,6 +61,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   try {
     // Fetch all cars from /all_cars_full endpoint (server-side)
     const allCars = await getAllCarsFull();
+
     // Find the car by ID
     const car = allCars.find((c) => c.id === carId);
 

@@ -130,7 +130,9 @@ export default function ContactSettingsForm() {
       {message && (
         <div
           className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+            message.type === 'success'
+              ? 'bg-green-50 text-green-800'
+              : 'bg-red-50 text-red-800'
           }`}
         >
           {message.text}
@@ -138,7 +140,9 @@ export default function ContactSettingsForm() {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Телефон (для ссылки tel:)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Телефон (для ссылки tel:)
+        </label>
         <input
           type="text"
           value={form.phone ?? ''}
@@ -148,7 +152,9 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Телефон (отображение)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Телефон (отображение)
+        </label>
         <input
           type="text"
           value={form.phoneDisplay ?? ''}
@@ -158,7 +164,9 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Почта</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Почта
+        </label>
         <input
           type="email"
           value={form.email ?? ''}
@@ -168,7 +176,9 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Адрес</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Адрес
+        </label>
         <textarea
           value={form.address ?? ''}
           onChange={handleChange('address')}
@@ -178,7 +188,9 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp URL</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          WhatsApp URL
+        </label>
         <input
           type="url"
           value={form.whatsappUrl ?? ''}
@@ -188,7 +200,9 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Telegram URL</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Telegram URL
+        </label>
         <input
           type="url"
           value={form.telegramUrl ?? ''}
@@ -198,7 +212,9 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Telegram URL 2 (опционально)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Telegram URL 2 (опционально)
+        </label>
         <input
           type="url"
           value={form.telegramUrl2 ?? ''}
@@ -208,18 +224,22 @@ export default function ContactSettingsForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Режим работы</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Режим работы
+        </label>
         <input
           type="text"
           value={form.workHours ?? ''}
           onChange={handleChange('workHours')}
-          placeholder="Работаем Пн-Сб с 9:00 до 21:00"
+          placeholder="Работаем Пн-Вс с 9:00 до 21:00"
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Широта карты</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Широта карты
+          </label>
           <input
             type="number"
             step="any"
@@ -229,7 +249,9 @@ export default function ContactSettingsForm() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Долгота карты</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Долгота карты
+          </label>
           <input
             type="number"
             step="any"
@@ -239,7 +261,9 @@ export default function ContactSettingsForm() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Зум карты</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Зум карты
+          </label>
           <input
             type="number"
             min={1}

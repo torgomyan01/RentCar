@@ -3,6 +3,7 @@
 import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
+import { formatPhoneMask } from '@/lib/phone-mask';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -65,7 +66,7 @@ function Footer({ minHeight = false }: FooterProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'phone' ? formatPhoneMask(value) : value,
     }));
   };
 

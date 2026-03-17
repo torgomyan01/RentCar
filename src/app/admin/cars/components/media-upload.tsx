@@ -7,14 +7,6 @@ interface MediaUploadProps {
   onUploadSuccess?: () => void;
 }
 
-interface MediaFile {
-  id: string;
-  type: 'image' | 'video';
-  fileName: string;
-  filePath: string;
-  fileSize: number;
-}
-
 export default function MediaUpload({
   groupKey,
   onUploadSuccess,
@@ -53,17 +45,9 @@ export default function MediaUpload({
       'image/webp',
       'image/gif',
     ];
-    const allowedVideoTypes = [
-      'video/mp4',
-      'video/webm',
-      'video/quicktime',
-      'video/x-msvideo',
-    ];
-
     const MAX_SIZE = 30 * 1024 * 1024; // 30MB
 
     let imageCount = 0;
-    let videoCount = 0;
 
     Array.from(files).forEach((file) => {
       if (allowedImageTypes.includes(file.type)) {
@@ -77,19 +61,8 @@ export default function MediaUpload({
           return;
         }
         valid.push(file);
-      } else if (allowedVideoTypes.includes(file.type)) {
-        if (file.size > MAX_SIZE) {
-          errors.push(`${file.name}: превышает 30MB`);
-          return;
-        }
-        videoCount++;
-        if (videoCount > 1) {
-          errors.push(`Максимум 1 видео`);
-          return;
-        }
-        valid.push(file);
       } else {
-        errors.push(`${file.name}: неподдерживаемый формат`);
+        errors.push(`${file.name}: поддерживаются только изображения`);
       }
     });
 
@@ -200,14 +173,14 @@ export default function MediaUpload({
             </button>
           </p>
           <p className="text-xs text-gray-500">
-            До 10 изображений и 1 видео (макс. 30MB каждый)
+            До 10 изображений (макс. 30MB каждый)
           </p>
         </div>
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,video/*"
+          accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
         />

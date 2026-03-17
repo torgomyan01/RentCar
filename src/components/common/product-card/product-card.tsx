@@ -116,15 +116,15 @@ function getCarImage(car: Car, index: number): string {
   return placeholderImages[index % placeholderImages.length];
 }
 
-function extractSeatNumbers(value: string | number | null | undefined): number[] {
+function extractSeatNumbers(
+  value: string | number | null | undefined
+): number[] {
   if (value === undefined || value === null) return [];
   if (typeof value === 'number' && Number.isFinite(value)) return [value];
   if (typeof value === 'string') {
     const matches = value.match(/\d+/g);
     if (!matches) return [];
-    return matches
-      .map((m) => Number(m))
-      .filter((n) => Number.isFinite(n));
+    return matches.map((m) => Number(m)).filter((n) => Number.isFinite(n));
   }
   return [];
 }
@@ -135,7 +135,9 @@ function getSeats(cars: Car[] | undefined, currentCar: Car): string {
   const values = Array.from(
     new Set(
       source.flatMap((c) => [
-        ...extractSeatNumbers(c.number_seats as string | number | null | undefined),
+        ...extractSeatNumbers(
+          c.number_seats as string | number | null | undefined
+        ),
         ...extractSeatNumbers(c.seats as string | number | null | undefined),
       ])
     )
@@ -360,7 +362,9 @@ function ProductCard({
     if (mileage) query.set('mileage', mileage);
 
     const queryString = query.toString();
-    return queryString ? `/product/${car.id}?${queryString}` : `/product/${car.id}`;
+    return queryString
+      ? `/product/${car.id}?${queryString}`
+      : `/product/${car.id}`;
   }, [car.id, searchParams]);
 
   const handleTooltipClick = (e: React.MouseEvent) => {
@@ -534,7 +538,7 @@ function ProductCard({
           className="red-btn text-[14px]!"
           onClick={(e) => {
             e.preventDefault();
-            openModal({ car });
+            openModal({ car, contactOnly: true });
           }}
         >
           Оставить заявку

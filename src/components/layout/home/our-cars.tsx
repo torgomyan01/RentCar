@@ -13,11 +13,11 @@ function OurCars() {
   const carFeatures = [
     {
       icon: '/img/our-cars-icon1.svg',
-      text: 'Машины от класса «эконом» до «бизнес премиум»',
+      text: 'Машины от класса эконом до минивэнов',
     },
     {
       icon: '/img/our-cars-icon2.svg',
-      text: 'Все автомобили застрахованы по ОСАГО и КАСКО',
+      text: 'Все автомобили застрахованы по ОСАГО',
     },
     {
       icon: '/img/our-cars-icon3.svg',

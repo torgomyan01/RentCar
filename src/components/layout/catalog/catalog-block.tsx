@@ -22,6 +22,52 @@ interface CatalogBlockProps {
   initialCars: Car[];
 }
 
+function getCarMinPriceValue(car: Car): number {
+  const pricesArray = car.prices || car.price;
+
+  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
+    const values: number[] = [];
+
+    for (const priceItem of pricesArray) {
+      if (
+        priceItem &&
+        typeof priceItem === 'object' &&
+        'values' in priceItem &&
+        Array.isArray(priceItem.values)
+      ) {
+        values.push(
+          ...priceItem.values.filter(
+            (v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
+          )
+        );
+      } else if (
+        typeof priceItem === 'number' &&
+        Number.isFinite(priceItem) &&
+        priceItem > 0
+      ) {
+        values.push(priceItem);
+      }
+    }
+
+    if (values.length > 0) {
+      return Math.min(...values);
+    }
+  }
+
+  if (typeof car.price === 'number' && Number.isFinite(car.price) && car.price > 0) {
+    return car.price;
+  }
+
+  if (typeof car.price_from === 'string') {
+    const parsed = Number(car.price_from.replace(/[^\d]/g, ''));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
 function CatalogBlock({ initialCars }: CatalogBlockProps) {
   const [cars] = useState<Car[]>(initialCars);
   const [activeTabs, setActiveTabs] = useState<string[]>(['all']);
@@ -86,7 +132,14 @@ function CatalogBlock({ initialCars }: CatalogBlockProps) {
     ? cars
     : cars.filter((car) => car.car_type && activeTabs.includes(car.car_type));
 
-  const groupedCars = groupCarsByModel(filteredCars);
+  const groupedCars = useMemo(() => {
+    const grouped = groupCarsByModel(filteredCars);
+    return grouped.sort((a, b) => {
+      const aMin = Math.min(...a.map(getCarMinPriceValue));
+      const bMin = Math.min(...b.map(getCarMinPriceValue));
+      return aMin - bMin;
+    });
+  }, [filteredCars]);
 
   return (
     <div className="catalog-wrap">
@@ -99,14 +152,13 @@ function CatalogBlock({ initialCars }: CatalogBlockProps) {
         />
         <h1>каталог автомобилей</h1>
         <p className="subtitle">
-          В базовый тариф включен пробег 200 км в сутки. Пробег суммируется за
-          весь период аренды (не зависимо от того, сколько проехал автомобиль за
-          одни сутки). Перепробег оплачивается дополнительно, в зависимости от
-          класса арендуемого автомобиля в соответствии с тарифами В базовый
-          тариф включен пробег 200 км в сутки. Пробег суммируется за весь период
-          аренды (не зависимо от того, сколько проехал автомобиль за одни
-          сутки). период аренды (не зависимо от того, сколько проехал автомобиль
-          за одни сутки).
+          Мы стремимся сделать аренду автомобиля максимально комфортной и удобной
+          для Вас, позволяя выбрать оптимальный срок аренды и обширную географию
+          эксплуатации. Автомобиль становится Вашим личным пространством, где
+          можете комфортно разместиться и наслаждаться приватностью в пути.
+          Независимо от того, нужен Вам автомобиль на короткий срок или на более
+          длительное время, мы готовы предоставить надежное транспортное
+          средство по доступной цене.
         </p>
         <div className="found">
           <h3>найдено автомобилей</h3>

@@ -200,6 +200,10 @@ export interface Car {
   max_fine?: number; // Maximum fine
   repair_cost?: number; // Repair cost
   description?: string | null; // Description
+  deposit?: number | null; // Deposit from car_data / car_data_with_bookings
+  selected_price?: number | null; // Selected daily price from car_data
+  hours_limit?: number | null; // Hours limit from car_data
+  price_hour?: number | null; // Additional hour price from car_data
   // Legacy fields for backward compatibility
   make?: string;
   model?: string;
@@ -281,6 +285,13 @@ export const rentprogApiServer = {
   getCarData: async (carId: number): Promise<Car> => {
     return makeAuthenticatedRequest<Car>('/car_data', {
       params: { id: carId },
+    });
+  },
+
+  // Get car data with prices and bookings
+  getCarDataWithBookings: async (carId: number): Promise<Car> => {
+    return makeAuthenticatedRequest<Car>('/car_data_with_bookings', {
+      params: { car_id: carId },
     });
   },
 };

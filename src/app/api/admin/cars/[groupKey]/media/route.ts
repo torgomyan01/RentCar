@@ -7,9 +7,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 
 const MAX_IMAGE_SIZE = 30 * 1024 * 1024; // 30MB
-const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 const MAX_IMAGES_PER_GROUP = 10;
-const MAX_VIDEOS_PER_GROUP = 1;
 
 const ALLOWED_IMAGE_TYPES = [
   'image/jpeg',
@@ -17,13 +15,6 @@ const ALLOWED_IMAGE_TYPES = [
   'image/png',
   'image/webp',
   'image/gif',
-];
-
-const ALLOWED_VIDEO_TYPES = [
-  'video/mp4',
-  'video/webm',
-  'video/quicktime',
-  'video/x-msvideo',
 ];
 
 export async function POST(
@@ -53,11 +44,8 @@ export async function POST(
     });
 
     const existingImages = existingMedia.filter((m) => m.type === 'image');
-    const existingVideos = existingMedia.filter((m) => m.type === 'video');
-
     // Validate files
     const images: File[] = [];
-    const videos: File[] = [];
 
     for (const file of files) {
       const fileType = file.type;
@@ -79,25 +67,9 @@ export async function POST(
           );
         }
         images.push(file);
-      } else if (ALLOWED_VIDEO_TYPES.includes(fileType)) {
-        if (fileSize > MAX_VIDEO_SIZE) {
-          return NextResponse.json(
-            { error: `Video ${file.name} exceeds 30MB limit` },
-            { status: 400 }
-          );
-        }
-        if (existingVideos.length + videos.length >= MAX_VIDEOS_PER_GROUP) {
-          return NextResponse.json(
-            {
-              error: `Maximum ${MAX_VIDEOS_PER_GROUP} video allowed per group`,
-            },
-            { status: 400 }
-          );
-        }
-        videos.push(file);
       } else {
         return NextResponse.json(
-          { error: `File type ${fileType} not allowed` },
+          { error: `Only image files are allowed` },
           { status: 400 }
         );
       }
@@ -145,40 +117,6 @@ export async function POST(
       uploadedFiles.push({
         id: media.id,
         type: 'image',
-        fileName: media.fileName,
-        filePath: media.filePath,
-        fileSize: media.fileSize,
-      });
-    }
-
-    // Upload videos
-    for (let i = 0; i < videos.length; i++) {
-      const file = videos[i];
-      const timestamp = Date.now();
-      const extension = file.name.split('.').pop();
-      const fileName = `video_${timestamp}_${i}.${extension}`;
-      const filePath = join(uploadDir, fileName);
-      const relativePath = `/api/cars/${encodeURIComponent(groupKey)}/media/file?path=${encodeURIComponent(`cars/${groupKey}/${fileName}`)}`;
-
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-
-      const media = await prisma.carGroupMedia.create({
-        data: {
-          groupKey,
-          type: 'video',
-          fileName: file.name,
-          filePath: relativePath,
-          fileSize: file.size,
-          mimeType: file.type,
-          order: existingVideos.length + i,
-        },
-      });
-
-      uploadedFiles.push({
-        id: media.id,
-        type: 'video',
         fileName: media.fileName,
         filePath: media.filePath,
         fileSize: media.fileSize,
