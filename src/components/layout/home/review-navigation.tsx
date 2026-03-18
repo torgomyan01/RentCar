@@ -63,7 +63,7 @@ export default function ReviewNavigation() {
         </button>
       </div>
       <a
-        href="https://www.avito.ru/brands/i183494182?src=sharing"
+        href="https://www.avito.ru/brands/i183494182"
         className="red-btn"
         target="_blank"
       >

@@ -145,10 +145,7 @@ function Footer({ minHeight = false }: FooterProps) {
           <Link href="/privacy" className="footer-link">
             Политика конфиденциальности
           </Link>
-          <Link
-            href="http://avito.ru/user/161dbd07ae97d22ff6581dcefb7ee1bf/profile?src=sharing"
-            target="_blank"
-          >
+          <Link href="https://www.avito.ru/brands/i183494182" target="_blank">
             <img src="/img/avito-logo.svg" alt="Avito" />
           </Link>
         </div>

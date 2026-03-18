@@ -11,10 +11,7 @@ export default async function ReviewBlock() {
       <div className="container">
         <div className="title-wrap">
           <h2>о нас говорят</h2>
-          <Link
-            href="https://www.avito.ru/brands/i183494182?src=sharing"
-            target="_blank"
-          >
+          <Link href="https://www.avito.ru/brands/i183494182" target="_blank">
             <img src="/img/avito-review.svg" alt="" className="rev-logo" />
           </Link>
           <div className="text-style">
