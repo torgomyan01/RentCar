@@ -35,7 +35,12 @@ import {
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
-import { formatPhoneMask } from '@/lib/phone-mask';
+import {
+  formatPhoneMask,
+  phoneMaskOnFocus,
+  phoneMaskOnBlur,
+  phoneMaskOnKeyDown,
+} from '@/lib/phone-mask';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -697,8 +702,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         id: 'peace-package',
         name: 'Доп. водитель',
         price: 1000,
-        tooltip:
-          '',
+        tooltip: '',
         showTooltip: false,
       },
       {
@@ -713,8 +717,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         id: 'casco',
         name: 'Детское кресло',
         price: 1000,
-        tooltip:
-          '',
+        tooltip: '',
         showTooltip: false,
       },
       {
@@ -729,8 +732,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         id: 'casco-no-franchise',
         name: 'Аренда бустера',
         price: 1000,
-        tooltip:
-          '',
+        tooltip: '',
         showTooltip: false,
       },
       {
@@ -1487,9 +1489,12 @@ ${pricingInfo}
                 />
                 <input
                   type="tel"
-                  placeholder="Введите номер телефона"
+                  placeholder="+7 (___) ___-__-__"
                   value={phone}
                   onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
+                  onFocus={() => phoneMaskOnFocus(phone, setPhone)}
+                  onBlur={() => phoneMaskOnBlur(phone, setPhone)}
+                  onKeyDown={(e) => phoneMaskOnKeyDown(e, phone, setPhone)}
                   disabled={isSubmitting}
                 />
 
@@ -1538,13 +1543,13 @@ ${pricingInfo}
             <>
               <div className="w-full border-t border-gray-200 py-6 sm:py-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
-                  <span>Залог</span>
+                  <span>Депозит</span>
                   <b className="text-[18px] sm:text-[21px] text-right">
                     {depositDisplay}
                   </b>
                 </div>
                 <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
-                  <span>Лимит пробега</span>
+                  <span>Включенный пробег</span>
                   <b className="text-[18px] sm:text-[21px] text-right">
                     {mileageLimitDisplay}
                   </b>

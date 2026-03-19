@@ -6,7 +6,12 @@ import {
   calculateExtraTimeFee,
   EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
-import { formatPhoneMask } from '@/lib/phone-mask';
+import {
+  formatPhoneMask,
+  phoneMaskOnFocus,
+  phoneMaskOnBlur,
+  phoneMaskOnKeyDown,
+} from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -87,7 +92,6 @@ const RentModal = ({
   // Կոնտակտային դաշտեր (երբ car նշված է)
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [contactMessage, setContactMessage] = useState('');
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -104,7 +108,6 @@ const RentModal = ({
       setEndTime((prev) => minutesToClock(parseClockToMinutes(prev)));
       setContactName('');
       setContactPhone('');
-      setContactMessage('');
       setSubmitStatus(null);
     }
   }, [isOpen]);
@@ -278,7 +281,6 @@ ${carBlock ? `${carBlock}\n` : ''}
 👤 *Клиент:*
 • Имя: ${name}
 • Телефон: ${phone}
-${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : ''}
       `.trim();
       try {
         const response = await fetch('/api/telegram/send-message', {
@@ -361,7 +363,6 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
 👤 *Клиент:*
 • Имя: ${name}
 • Телефон: ${phone}
-${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : ''}
       `.trim();
 
       try {
@@ -719,17 +720,12 @@ ${contactMessage.trim() ? `• Сообщение: ${contactMessage.trim()}` : '
             <input
               type="tel"
               name="phone"
-              placeholder="Введите ваш номер телефона"
+              placeholder="+7 (___) ___-__-__"
               value={contactPhone}
               onChange={(e) => setContactPhone(formatPhoneMask(e.target.value))}
-              disabled={isSubmitting}
-            />
-            <textarea
-              name="message"
-              placeholder="Сообщение (необязательно)"
-              value={contactMessage}
-              onChange={(e) => setContactMessage(e.target.value)}
-              rows={2}
+              onFocus={() => phoneMaskOnFocus(contactPhone, setContactPhone)}
+              onBlur={() => phoneMaskOnBlur(contactPhone, setContactPhone)}
+              onKeyDown={(e) => phoneMaskOnKeyDown(e, contactPhone, setContactPhone)}
               disabled={isSubmitting}
             />
             {submitStatus && (

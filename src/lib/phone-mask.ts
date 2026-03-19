@@ -1,3 +1,5 @@
+const PHONE_PREFIX = '+7 (';
+
 export function formatPhoneMask(rawValue: string): string {
   const digitsOnly = String(rawValue || '').replace(/\D/g, '');
   if (!digitsOnly) return '';
@@ -28,4 +30,50 @@ export function formatPhoneMask(rawValue: string): string {
   if (part4) result += `-${part4}`;
 
   return result;
+}
+
+export function phoneMaskOnFocus(
+  currentValue: string,
+  setter: (v: string) => void
+): void {
+  if (!currentValue || currentValue.trim() === '') {
+    setter(PHONE_PREFIX);
+  }
+}
+
+export function phoneMaskOnBlur(
+  currentValue: string,
+  setter: (v: string) => void
+): void {
+  const digits = String(currentValue || '').replace(/\D/g, '');
+  if (!digits || digits === '7') {
+    setter('');
+  }
+}
+
+export function phoneMaskOnKeyDown(
+  e: React.KeyboardEvent<HTMLInputElement>,
+  currentValue: string,
+  setter: (v: string) => void
+): void {
+  if (e.key === 'Backspace') {
+    const stripped = currentValue.replace(/\D/g, '');
+    if (!stripped || stripped === '7') {
+      e.preventDefault();
+      setter(PHONE_PREFIX);
+      return;
+    }
+
+    e.preventDefault();
+    const shorter = stripped.slice(0, -1);
+    if (!shorter || shorter === '7') {
+      setter(PHONE_PREFIX);
+    } else {
+      setter(formatPhoneMask(shorter));
+    }
+  }
+}
+
+export function getPhoneDigits(masked: string): string {
+  return String(masked || '').replace(/\D/g, '');
 }

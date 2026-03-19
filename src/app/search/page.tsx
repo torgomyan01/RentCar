@@ -13,50 +13,59 @@ import { useSearchParams } from 'next/navigation';
 import { calculateExtraTimeFee } from '@/lib/business-hours-fee';
 import { parseMileageInput } from '@/lib/mileage-pricing';
 
-function getCarMinPriceValue(car: Car): number {
+function extractCarPrices(car: Car): number[] {
   const pricesArray = car.prices || car.price;
 
   if (Array.isArray(pricesArray) && pricesArray.length > 0) {
-    const values: number[] = [];
-
-    for (const priceItem of pricesArray) {
-      if (
-        priceItem &&
-        typeof priceItem === 'object' &&
-        'values' in priceItem &&
-        Array.isArray(priceItem.values)
-      ) {
-        values.push(
-          ...priceItem.values.filter(
-            (v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
-          )
-        );
-      } else if (
-        typeof priceItem === 'number' &&
-        Number.isFinite(priceItem) &&
-        priceItem > 0
-      ) {
-        values.push(priceItem);
+    if (
+      typeof pricesArray[0] === 'object' &&
+      pricesArray[0] !== null &&
+      'values' in pricesArray[0]
+    ) {
+      const firstItem = pricesArray[0] as { values: number[] };
+      if (Array.isArray(firstItem.values) && firstItem.values.length > 0) {
+        const vals = [...firstItem.values];
+        while (vals.length < 5) vals.push(vals[vals.length - 1] || 0);
+        return vals.slice(0, 5);
       }
     }
-
-    if (values.length > 0) {
-      return Math.min(...values);
+    if (typeof pricesArray[0] === 'number') {
+      const nums = pricesArray as unknown as number[];
+      const vals = [...nums];
+      while (vals.length < 5) vals.push(vals[vals.length - 1] || 0);
+      return vals.slice(0, 5);
     }
   }
 
-  if (typeof car.price === 'number' && Number.isFinite(car.price) && car.price > 0) {
-    return car.price;
+  if (
+    typeof car.price === 'number' &&
+    Number.isFinite(car.price) &&
+    car.price > 0
+  ) {
+    return [car.price, car.price, car.price, car.price, car.price];
   }
 
   if (typeof car.price_from === 'string') {
     const parsed = Number(car.price_from.replace(/[^\d]/g, ''));
     if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
+      return [parsed, parsed, parsed, parsed, parsed];
     }
   }
 
-  return Number.POSITIVE_INFINITY;
+  return [Infinity, Infinity, Infinity, Infinity, Infinity];
+}
+
+function getPriceForDays(prices: number[], days: number): number {
+  if (days <= 2) return prices[0] || 0;
+  if (days <= 7) return prices[1] || 0;
+  if (days <= 15) return prices[2] || 0;
+  if (days <= 31) return prices[3] || 0;
+  return prices[4] || 0;
+}
+
+function getCarRentalPrice(car: Car, days: number): number {
+  const prices = extractCarPrices(car);
+  return getPriceForDays(prices, days);
 }
 
 function SearchPage() {
@@ -152,6 +161,39 @@ function SearchPage() {
       });
     });
   }, [loading, startDate, endDate, mileageParam]);
+
+  // Calculate number of days between start_date and end_date
+  const calculateDays = (
+    startDateStr: string | null,
+    endDateStr: string | null
+  ): number => {
+    if (!startDateStr || !endDateStr) return 0;
+
+    try {
+      const parseDate = (dateStr: string): Date => {
+        const [datePart, timePart] = dateStr.split(' ');
+        const [day, month, year] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart
+          ? timePart.split(':').map(Number)
+          : [0, 0];
+        return new Date(year, month - 1, day, hours, minutes);
+      };
+
+      const start = parseDate(startDateStr);
+      const end = parseDate(endDateStr);
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > 0 ? diffDays : 0;
+    } catch (error) {
+      console.error('Error calculating days:', error);
+      return 0;
+    }
+  };
+
+  const rentalDays = useMemo(
+    () => calculateDays(startDate, endDate),
+    [startDate, endDate]
+  );
 
   // Group cars by model/name (same car, different colors and years)
   const getCarGroupKey = (car: Car): string => {
@@ -257,12 +299,13 @@ function SearchPage() {
 
   const groupedCars = useMemo(() => {
     const grouped = groupCarsByModel(filteredCars);
+    const days = rentalDays || 1;
     return grouped.sort((a, b) => {
-      const aMin = Math.min(...a.map(getCarMinPriceValue));
-      const bMin = Math.min(...b.map(getCarMinPriceValue));
-      return aMin - bMin;
+      const aPrice = Math.min(...a.map((c) => getCarRentalPrice(c, days)));
+      const bPrice = Math.min(...b.map((c) => getCarRentalPrice(c, days)));
+      return aPrice - bPrice;
     });
-  }, [filteredCars]);
+  }, [filteredCars, rentalDays]);
   const allCarsByGroup = useMemo(() => {
     const grouped = new Map<string, Car[]>();
     allCars.forEach((car) => {
@@ -274,45 +317,6 @@ function SearchPage() {
     });
     return grouped;
   }, [allCars]);
-
-  // Calculate number of days between start_date and end_date
-  const calculateDays = (
-    startDateStr: string | null,
-    endDateStr: string | null
-  ): number => {
-    if (!startDateStr || !endDateStr) return 0;
-
-    try {
-      // Parse date from format "DD-MM-YYYY H:mm"
-      const parseDate = (dateStr: string): Date => {
-        const [datePart, timePart] = dateStr.split(' ');
-        const [day, month, year] = datePart.split('-').map(Number);
-        const [hours, minutes] = timePart
-          ? timePart.split(':').map(Number)
-          : [0, 0];
-        return new Date(year, month - 1, day, hours, minutes);
-      };
-
-      const start = parseDate(startDateStr);
-      const end = parseDate(endDateStr);
-
-      // Calculate difference in milliseconds
-      const diffTime = end.getTime() - start.getTime();
-
-      // Convert to days (round up to include partial days)
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      return diffDays > 0 ? diffDays : 0;
-    } catch (error) {
-      console.error('Error calculating days:', error);
-      return 0;
-    }
-  };
-
-  const rentalDays = useMemo(
-    () => calculateDays(startDate, endDate),
-    [startDate, endDate]
-  );
 
   const extraTimeFeeInfo = useMemo(() => {
     return calculateExtraTimeFee(startDate, endDate);
@@ -356,7 +360,8 @@ function SearchPage() {
                   groupedCars.map((carGroup, index) => {
                     const mainCar = carGroup[0];
                     const groupKey = getCarGroupKey(mainCar);
-                    const fullCarGroup = allCarsByGroup.get(groupKey) || carGroup;
+                    const fullCarGroup =
+                      allCarsByGroup.get(groupKey) || carGroup;
 
                     return (
                       <div key={mainCar.id || mainCar.car_name || index}>

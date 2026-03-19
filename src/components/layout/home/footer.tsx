@@ -3,7 +3,12 @@
 import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
-import { formatPhoneMask } from '@/lib/phone-mask';
+import {
+  formatPhoneMask,
+  phoneMaskOnFocus,
+  phoneMaskOnBlur,
+  phoneMaskOnKeyDown,
+} from '@/lib/phone-mask';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -70,6 +75,9 @@ function Footer({ minHeight = false }: FooterProps) {
     }));
   };
 
+  const setPhone = (v: string) =>
+    setFormData((prev) => ({ ...prev, phone: v }));
+
   return (
     <footer className={clsx('footer', minHeight && 'no-content')}>
       <div className="container">
@@ -95,9 +103,12 @@ function Footer({ minHeight = false }: FooterProps) {
             <input
               type="tel"
               name="phone"
-              placeholder="Введите ваш номер телефона"
+              placeholder="+7 (___) ___-__-__"
               value={formData.phone}
               onChange={handleChange}
+              onFocus={() => phoneMaskOnFocus(formData.phone, setPhone)}
+              onBlur={() => phoneMaskOnBlur(formData.phone, setPhone)}
+              onKeyDown={(e) => phoneMaskOnKeyDown(e, formData.phone, setPhone)}
               required
             />
             <button type="submit" className="red-btn" disabled={isSubmitting}>
