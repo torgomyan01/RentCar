@@ -480,6 +480,11 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
             step={TIME_RANGE_STEP_MINUTES}
             value={minutes}
             onChange={(e) => onChange(minutesToClock(Number(e.target.value)))}
+            onInput={(e) =>
+              onChange(
+                minutesToClock(Number((e.target as HTMLInputElement).value))
+              )
+            }
             className="time-range-input"
             style={{
               background: `linear-gradient(to right, #df3b33 0%, #df3b33 ${percent}%, #d9dde2 ${percent}%, #d9dde2 100%)`,

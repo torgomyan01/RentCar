@@ -2503,6 +2503,11 @@ a {
   .time-range-wrap {
     position: relative;
     padding-top: 20px;
+    // Inset track from edges so the thumb at min/max stays inside a comfortable touch zone (mobile WebKit).
+    @media (max-width: 767px) {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
   }
 
   .time-range-input {
@@ -2514,7 +2519,7 @@ a {
     outline: none;
     cursor: pointer;
     transition: filter 0.2s ease;
-    touch-action: manipulation;
+    touch-action: pan-x;
     -webkit-tap-highlight-color: transparent;
 
     &:hover {
@@ -2531,6 +2536,12 @@ a {
       border: 2px solid #fff;
       box-shadow: 0 2px 8px rgba(223, 59, 51, 0.35);
       margin-top: -6px;
+      // Slightly larger hit target on coarse pointers (iOS/Android).
+      @media (hover: none) and (pointer: coarse) {
+        width: 30px;
+        height: 30px;
+        margin-top: -10px;
+      }
     }
 
     &::-webkit-slider-runnable-track {
@@ -2546,6 +2557,10 @@ a {
       border-radius: 50%;
       background: #df3b33;
       box-shadow: 0 2px 8px rgba(223, 59, 51, 0.35);
+      @media (hover: none) and (pointer: coarse) {
+        width: 30px;
+        height: 30px;
+      }
     }
 
     &::-moz-range-track {

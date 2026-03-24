@@ -802,6 +802,16 @@ h1.full-text {
         font-size: 14px;
       }
     }
+
+    .option-price-line {
+      font-weight: 500;
+    }
+
+    .option-price-unit {
+      font-size: 0.82em;
+      font-weight: 400;
+      color: #8a8a8a;
+    }
   }
 
   .switch {
@@ -874,6 +884,38 @@ h1.full-text {
       font-size: 20px;
       font-weight: 500;
       color: #373737;
+    }
+  }
+
+  .sum-row-label-with-hint {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .sum-row-hint-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    margin: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    line-height: 0;
+    flex-shrink: 0;
+
+    img {
+      display: block;
+      width: 18px;
+      height: 18px;
+      opacity: 0.72;
+    }
+
+    &:hover img,
+    &:focus-visible img {
+      opacity: 1;
     }
   }
 

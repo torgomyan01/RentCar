@@ -322,6 +322,26 @@ interface ServicePricing {
   fullCascoPricePerDay: number;
 }
 
+/** price = итог за период; при billing === 'perDay' price = pricePerDay * суток */
+interface AdditionalOption {
+  id: string;
+  name: string;
+  price: number;
+  billing: 'perDay' | 'once';
+  pricePerDay?: number;
+  tooltip: string;
+  showTooltip: boolean;
+}
+
+function getTariffLabelForDays(days: number): string {
+  if (days <= 0) return '';
+  if (days <= 2) return '1–2 дня';
+  if (days <= 7) return '3–6 дней';
+  if (days <= 15) return '7–14 дней';
+  if (days <= 31) return '15–30 дней';
+  return '30 + дней';
+}
+
 export default function ProductClient({ car, allCars }: ProductClientProps) {
   const { openModal } = useRentModal();
   const router = useRouter();
@@ -696,11 +716,12 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return getPriceForDays(rentalDays) * rentalDays;
   }, [rentalDays, prices]);
 
-  const additionalOptions = useMemo(() => {
+  const additionalOptions: AdditionalOption[] = useMemo(() => {
     return [
       {
         id: 'peace-package',
         name: 'Доп. водитель',
+        billing: 'once',
         price: 1000,
         tooltip: '',
         showTooltip: false,
@@ -708,6 +729,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       {
         id: 'booster',
         name: 'Пакет "Спокойствие"',
+        billing: 'perDay',
+        pricePerDay: servicePricing.calmPricePerDay,
         price: servicePricing.calmPricePerDay * rentalDays,
         tooltip:
           'Опция подразумевает освобождение от ответственности за повреждение лобового стекла, стекла фар, бокового стекла и стекла двери транспортного средства в размере его стоимости и работ по замене, освобождение от ответственности за повреждение и утрату шин и дисков.',
@@ -716,6 +739,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       {
         id: 'casco',
         name: 'Детское кресло',
+        billing: 'once',
         price: 1000,
         tooltip: '',
         showTooltip: false,
@@ -723,6 +747,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       {
         id: 'child-seat',
         name: 'КАСКО ',
+        billing: 'perDay',
+        pricePerDay: servicePricing.cascoPricePerDay,
         price: servicePricing.cascoPricePerDay * rentalDays,
         tooltip:
           'Опция снижает финансовую ответственность Арендатора до 100.000 рублей. В случае повреждения автомобиля или невозврата по своей вине, либо обоюдной вине, либо если виновное лицо не установлено: если ущерб автомобилю не превышает франшизу 100.000 рублей, то Арендатор возмещает размер причиненного ущерба; если ущерб автомобилю превышает франшизу 100.000 рублей, то арендатор выплачивает сумму в размере франшизы; опция покрывает ущерб при наличии надлежащего оформления документов из правоохранительных органов и возврата ключей и документов на автомобиль. Опция не покрывает химчистку салона.',
@@ -731,6 +757,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       {
         id: 'casco-no-franchise',
         name: 'Аренда бустера',
+        billing: 'once',
         price: 1000,
         tooltip: '',
         showTooltip: false,
@@ -738,6 +765,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       {
         id: 'extra-driver',
         name: 'Полное КАСКО',
+        billing: 'perDay',
+        pricePerDay: servicePricing.fullCascoPricePerDay,
         price: servicePricing.fullCascoPricePerDay * rentalDays,
         tooltip:
           'Опция покрывает ущерб, возникший в результате угона или повреждения автомобиля. Опция покрывает ущерб при наличии надлежащего оформления документов из правоохранительных органов и возврата ключей и документов на автомобиль. Опция не покрывает химчистку салона.',
@@ -887,7 +916,16 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 
       // Format selected options
       const selectedOptionsText = selectedOptionsList
-        .map((opt) => `${opt.name} - ${opt.price.toLocaleString('ru-RU')} ₽`)
+        .map((opt) => {
+          if (
+            opt.billing === 'perDay' &&
+            opt.pricePerDay != null &&
+            rentalDays > 0
+          ) {
+            return `${opt.name}: ${rentalDays} сут. × ${opt.pricePerDay.toLocaleString('ru-RU')} ₽/сут = ${opt.price.toLocaleString('ru-RU')} ₽`;
+          }
+          return `${opt.name} — ${opt.price.toLocaleString('ru-RU')} ₽ (за период)`;
+        })
         .join('\n');
 
       // Format car details
@@ -1119,6 +1157,31 @@ ${pricingInfo}
     }
   };
 
+  const isMobileGalleryViewport = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  }, []);
+
+  const openGalleryLightbox = useCallback(
+    (index: number) => {
+      if (isMobileGalleryViewport()) return;
+      setImageModalIndex(index);
+      setIsImageModalOpen(true);
+    },
+    [isMobileGalleryViewport]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => {
+      if (mq.matches) setIsImageModalOpen(false);
+    };
+    mq.addEventListener('change', onChange);
+    onChange();
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   return (
     <MainTemplate headerAnimation={false} minHeight={true}>
       <div className="search-in-wrap">
@@ -1176,14 +1239,11 @@ ${pricingInfo}
                       <Image
                         src={getServerImageUrl(image)}
                         alt={carName}
-                        className="h-[400px] object-cover rounded-[30px] cursor-zoom-in"
+                        className="h-[400px] object-cover rounded-[30px] cursor-default min-[768px]:cursor-zoom-in"
                         width={761}
                         height={400}
                         onLoad={handleGalleryImageLoad}
-                        onClick={() => {
-                          setImageModalIndex(index);
-                          setIsImageModalOpen(true);
-                        }}
+                        onClick={() => openGalleryLightbox(index)}
                       />
                     </SwiperSlide>
                   ))}
@@ -1369,7 +1429,23 @@ ${pricingInfo}
                             </Tooltip>
                           )}
                         </h4>
-                        <b>{option.price.toLocaleString('ru-RU')} ₽</b>
+                        <b className="option-price-line">
+                          {option.billing === 'perDay' &&
+                          option.pricePerDay != null ? (
+                            <>
+                              {option.pricePerDay.toLocaleString('ru-RU')} ₽
+                              <span className="option-price-unit">/сутки</span>
+                            </>
+                          ) : (
+                            <>
+                              {option.price.toLocaleString('ru-RU')} ₽
+                              <span className="option-price-unit">
+                                {' '}
+                                за период
+                              </span>
+                            </>
+                          )}
+                        </b>
                       </div>
                     </div>
                   ))}
@@ -1393,15 +1469,46 @@ ${pricingInfo}
 
               <div className="rent-summary">
                 <div className="sum-row">
-                  <span>Аренда</span>
+                  <span className="sum-row-label-with-hint">
+                    Аренда
+                    {rentalDays > 0 && (
+                      <Tooltip
+                        content={
+                          <div className="tooltip2">
+                            <span>
+                              Расчёт: {rentalDays} суток ×{' '}
+                              {getPriceForDays(rentalDays).toLocaleString(
+                                'ru-RU'
+                              )}{' '}
+                              ₽/сутки
+                              <br />
+                              Тариф: {getTariffLabelForDays(rentalDays)}
+                            </span>
+                          </div>
+                        }
+                        placement="top"
+                        classNames={{
+                          content: 'px-4! py-1! max-w-[280px]!',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="sum-row-hint-btn"
+                          aria-label="Как посчитана аренда"
+                        >
+                          <img src="/img/tooltip-icon.svg" alt="" />
+                        </button>
+                      </Tooltip>
+                    )}
+                  </span>
                   <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      flexWrap: 'wrap',
-                      justifyContent: 'flex-end',
-                    }}
+              style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-end',
+                }}
                   >
                     {oldRentalPrice > rentalPrice && (
                       <>
@@ -1439,7 +1546,46 @@ ${pricingInfo}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
-                    <span>{option.name}</span>
+                    <span className="sum-row-label-with-hint">
+                      {option.name}
+                      <Tooltip
+                        content={
+                          <div className="tooltip2">
+                            {option.billing === 'perDay' &&
+                            option.pricePerDay != null ? (
+                              rentalDays > 0 ? (
+                                <span>
+                                  Расчёт: {rentalDays} суток ×{' '}
+                                  {option.pricePerDay.toLocaleString('ru-RU')}{' '}
+                                  ₽/сутки ={' '}
+                                  {option.price.toLocaleString('ru-RU')} ₽
+                                </span>
+                              ) : (
+                                <span>
+                                  Ставка:{' '}
+                                  {option.pricePerDay.toLocaleString('ru-RU')}{' '}
+                                  ₽/сутки (итог после выбора дат)
+                                </span>
+                              )
+                            ) : (
+                              <span>Фиксированная сумма за период аренды</span>
+                            )}
+                          </div>
+                        }
+                        placement="top"
+                        classNames={{
+                          content: 'px-4! py-1! max-w-[280px]!',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="sum-row-hint-btn"
+                          aria-label="Как посчитана опция"
+                        >
+                          <img src="/img/tooltip-icon.svg" alt="" />
+                        </button>
+                      </Tooltip>
+                    </span>
                     <b>{option.price.toLocaleString('ru-RU')} ₽</b>
                   </motion.div>
                 ))}
