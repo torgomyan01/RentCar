@@ -38,28 +38,39 @@ import {
 import { getPhoneDigits } from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
 
-// Helper function to extract prices array from car
-function extractPrices(car: Car): number[] {
-  const pricesArray = car.prices || car.price;
+type SeasonLike = {
+  id?: number | string | null;
+  season_id?: number | string | null;
+  start_date?: string;
+  end_date?: string;
+};
 
-  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
-    if (
-      typeof pricesArray[0] === 'object' &&
-      pricesArray[0] !== null &&
-      'values' in pricesArray[0]
-    ) {
-      const firstPriceItem = pricesArray[0] as PriceItem;
-      if (
-        Array.isArray(firstPriceItem.values) &&
-        firstPriceItem.values.length >= 5
-      ) {
-        return firstPriceItem.values.slice(0, 5);
-      }
-    }
+function normalizePrices(values: number[] | undefined | null): number[] {
+  const safe = Array.isArray(values)
+    ? values.filter((v) => Number.isFinite(v) && v > 0)
+    : [];
+  if (safe.length === 0) return [2500, 2250, 2000, 1900, 1700];
+  const result = [...safe];
+  while (result.length < 5) {
+    result.push(result[result.length - 1] || 0);
   }
+  return result.slice(0, 5);
+}
 
-  // Fallback: return default prices if not available
-  return [2500, 2250, 2000, 1900, 1700];
+function parseSearchDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  const [datePart, timePart] = String(dateStr).split(' ');
+  const [day, month, year] = datePart.split('-').map(Number);
+  if (!day || !month || !year) return null;
+  const [hours, minutes] = timePart ? timePart.split(':').map(Number) : [0, 0];
+  return new Date(year, month - 1, day, hours || 0, minutes || 0);
+}
+
+function getSeasonId(season: SeasonLike): number | string | null {
+  if (season.id !== undefined && season.id !== null) return season.id;
+  if (season.season_id !== undefined && season.season_id !== null)
+    return season.season_id;
+  return null;
 }
 
 // Helper function to format car name
@@ -249,62 +260,110 @@ function parseSeasonDayMonth(
   return { day, month };
 }
 
-function getActiveSeasonEndDate(
-  seasons: Array<{ start_date?: string; end_date?: string }> | null | undefined
-): Date | null {
-  if (!Array.isArray(seasons) || seasons.length === 0) return null;
+function getSeasonWindowForDate(
+  season: SeasonLike,
+  referenceDate: Date
+): { startDate: Date; endDate: Date; seasonId: number | string | null } | null {
+  const startPart = parseSeasonDayMonth(season.start_date || '');
+  const endPart = parseSeasonDayMonth(season.end_date || '');
+  if (!startPart || !endPart) return null;
 
-  const today = new Date();
-  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const ref = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  );
 
-  for (const season of seasons) {
-    const startPart = parseSeasonDayMonth(season.start_date || '');
-    const endPart = parseSeasonDayMonth(season.end_date || '');
-    if (!startPart || !endPart) continue;
+  const crossesYear =
+    startPart.month > endPart.month ||
+    (startPart.month === endPart.month && startPart.day > endPart.day);
 
-    const crossesYear =
-      startPart.month > endPart.month ||
-      (startPart.month === endPart.month && startPart.day > endPart.day);
+  let startDate: Date;
+  let endDate: Date;
 
-    let startDate: Date;
-    let endDate: Date;
-
-    if (!crossesYear) {
-      startDate = new Date(
-        now.getFullYear(),
-        startPart.month - 1,
-        startPart.day
-      );
-      endDate = new Date(now.getFullYear(), endPart.month - 1, endPart.day);
+  if (!crossesYear) {
+    startDate = new Date(ref.getFullYear(), startPart.month - 1, startPart.day);
+    endDate = new Date(ref.getFullYear(), endPart.month - 1, endPart.day);
+  } else {
+    const currentYearStart = new Date(
+      ref.getFullYear(),
+      startPart.month - 1,
+      startPart.day
+    );
+    if (ref >= currentYearStart) {
+      startDate = currentYearStart;
+      endDate = new Date(ref.getFullYear() + 1, endPart.month - 1, endPart.day);
     } else {
-      const currentYearStart = new Date(
-        now.getFullYear(),
-        startPart.month - 1,
-        startPart.day
-      );
-      if (now >= currentYearStart) {
-        startDate = currentYearStart;
-        endDate = new Date(
-          now.getFullYear() + 1,
-          endPart.month - 1,
-          endPart.day
-        );
-      } else {
-        startDate = new Date(
-          now.getFullYear() - 1,
-          startPart.month - 1,
-          startPart.day
-        );
-        endDate = new Date(now.getFullYear(), endPart.month - 1, endPart.day);
-      }
-    }
-
-    if (now >= startDate && now <= endDate) {
-      return endDate;
+      startDate = new Date(ref.getFullYear() - 1, startPart.month - 1, startPart.day);
+      endDate = new Date(ref.getFullYear(), endPart.month - 1, endPart.day);
     }
   }
 
-  return null;
+  return { startDate, endDate, seasonId: getSeasonId(season) };
+}
+
+function resolvePricingForDate(
+  car: Car,
+  startDateStr: string | null
+): { prices: number[]; seasonEndDate: Date | null } {
+  const pricesArray = car.prices || car.price;
+  const referenceDate = parseSearchDate(startDateStr) || new Date();
+  const seasons = Array.isArray((car as any)?.seasons)
+    ? ((car as any).seasons as SeasonLike[])
+    : [];
+
+  let activeSeason: { seasonId: number | string | null; endDate: Date } | null =
+    null;
+  for (const season of seasons) {
+    const window = getSeasonWindowForDate(season, referenceDate);
+    if (!window) continue;
+    if (referenceDate >= window.startDate && referenceDate <= window.endDate) {
+      activeSeason = { seasonId: window.seasonId, endDate: window.endDate };
+      break;
+    }
+  }
+
+  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
+    if (
+      typeof pricesArray[0] === 'object' &&
+      pricesArray[0] !== null &&
+      'values' in pricesArray[0]
+    ) {
+      const items = pricesArray as PriceItem[];
+      if (activeSeason?.seasonId !== null && activeSeason?.seasonId !== undefined) {
+        const bySeason = items.find(
+          (item) => String(item.season_id ?? '') === String(activeSeason?.seasonId)
+        );
+        if (bySeason) {
+          return {
+            prices: normalizePrices(bySeason.values),
+            seasonEndDate: activeSeason.endDate,
+          };
+        }
+      }
+
+      const defaultItem =
+        items.find((item) => item.season_id === null) ||
+        items[0] ||
+        ({} as PriceItem);
+      return {
+        prices: normalizePrices(defaultItem.values),
+        seasonEndDate: activeSeason?.endDate || null,
+      };
+    }
+
+    if (typeof pricesArray[0] === 'number') {
+      return {
+        prices: normalizePrices(pricesArray as unknown as number[]),
+        seasonEndDate: activeSeason?.endDate || null,
+      };
+    }
+  }
+
+  return {
+    prices: [2500, 2250, 2000, 1900, 1700],
+    seasonEndDate: activeSeason?.endDate || null,
+  };
 }
 
 interface ProductClientProps {
@@ -416,6 +475,9 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' });
+  const [activeOptionTooltipId, setActiveOptionTooltipId] = useState<
+    string | null
+  >(null);
   const [carDetails, setCarDetails] = useState<Car | null>(null);
   const [servicePricing, setServicePricing] = useState<ServicePricing>({
     calmPricePerDay: 2000,
@@ -741,9 +803,10 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return `${values[0]} - ${values[values.length - 1]}`;
   }, [carGroup]);
 
-  const prices = useMemo(() => {
-    return extractPrices(resolvedCar);
-  }, [resolvedCar]);
+  const pricingForSelectedDate = useMemo(() => {
+    return resolvePricingForDate(resolvedCar, startDate);
+  }, [resolvedCar, startDate]);
+  const prices = pricingForSelectedDate.prices;
 
   const priceRanges = [
     { label: '1-2 дня', price: prices[0] },
@@ -753,13 +816,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     { label: '30 + дней', price: prices[4] },
   ];
   const tariffValidUntilText = useMemo(() => {
-    const seasons = Array.isArray((resolvedCar as any)?.seasons)
-      ? ((resolvedCar as any).seasons as Array<{
-          start_date?: string;
-          end_date?: string;
-        }>)
-      : [];
-    const endDate = getActiveSeasonEndDate(seasons);
+    const endDate = pricingForSelectedDate.seasonEndDate;
     if (!endDate) return null;
 
     return new Intl.DateTimeFormat('ru-RU', {
@@ -767,7 +824,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       month: 'long',
       year: 'numeric',
     }).format(endDate);
-  }, [resolvedCar]);
+  }, [pricingForSelectedDate.seasonEndDate]);
 
   // Calculate price based on rental days
   const getPriceForDays = (days: number): number => {
@@ -1324,6 +1381,9 @@ ${pricingInfo}
                   modules={[Navigation, Thumbs]}
                   onSwiper={setThumbsSwiper}
                   className="thumbs-slider"
+                  watchSlidesProgress
+                  slideToClickedSlide
+                  watchOverflow
                   spaceBetween={10}
                   slidesPerView={5}
                   direction="vertical"
@@ -1505,11 +1565,26 @@ ${pricingInfo}
                                 </div>
                               }
                               placement="top"
+                              isOpen={activeOptionTooltipId === option.id}
+                              onOpenChange={(open) =>
+                                setActiveOptionTooltipId(open ? option.id : null)
+                              }
                               classNames={{
                                 content: 'px-4! py-1! max-w-[260px]!',
                               }}
                             >
-                              <img src="/img/tooltip-icon.svg" alt="" />
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center"
+                                aria-label={`Информация об опции ${option.name}`}
+                                onClick={() =>
+                                  setActiveOptionTooltipId((prev) =>
+                                    prev === option.id ? null : option.id
+                                  )
+                                }
+                              >
+                                <img src="/img/tooltip-icon.svg" alt="" />
+                              </button>
                             </Tooltip>
                           )}
                         </h4>
