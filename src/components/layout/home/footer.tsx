@@ -3,12 +3,8 @@
 import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
-import {
-  formatPhoneMask,
-  phoneMaskOnFocus,
-  phoneMaskOnBlur,
-  phoneMaskOnKeyDown,
-} from '@/lib/phone-mask';
+import { InputMask } from '@react-input/mask';
+import { getPhoneDigits } from '@/lib/phone-mask';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -27,6 +23,14 @@ function Footer({ minHeight = false }: FooterProps) {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const phoneDigits = getPhoneDigits(formData.phone);
+    if (!phoneDigits) {
+      setSubmitStatus({
+        type: 'error',
+        message: 'Пожалуйста, введите номер телефона',
+      });
+      return;
+    }
     setIsSubmitting(true);
     setSubmitStatus({ type: null, message: '' });
 
@@ -71,12 +75,9 @@ function Footer({ minHeight = false }: FooterProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'phone' ? formatPhoneMask(value) : value,
+      [name]: value,
     }));
   };
-
-  const setPhone = (v: string) =>
-    setFormData((prev) => ({ ...prev, phone: v }));
 
   return (
     <footer className={clsx('footer', minHeight && 'no-content')}>
@@ -100,15 +101,16 @@ function Footer({ minHeight = false }: FooterProps) {
               onChange={handleChange}
               required
             />
-            <input
+            <InputMask
+              mask="+7 (___) ___-__-__"
+              replacement={{ _: /\d/ }}
+              showMask={false}
               type="tel"
               name="phone"
               placeholder="+7 (___) ___-__-__"
               value={formData.phone}
               onChange={handleChange}
-              onFocus={() => phoneMaskOnFocus(formData.phone, setPhone)}
-              onBlur={() => phoneMaskOnBlur(formData.phone, setPhone)}
-              onKeyDown={(e) => phoneMaskOnKeyDown(e, formData.phone, setPhone)}
+              inputMode="tel"
               required
             />
             <button type="submit" className="red-btn" disabled={isSubmitting}>

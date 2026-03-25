@@ -29,7 +29,7 @@ function Header({
   headerConent = null,
 }: HeaderProps) {
   const { openModal } = useRentModal();
-  const { settings } = useContactSettings();
+  const { settings, loading: contactLoading } = useContactSettings();
   const pathname = usePathname();
   const router = useRouter();
   const { cars, loading, error, lastFetched } = useAppSelector(
@@ -419,10 +419,14 @@ function Header({
                   animate: 'visible',
                 })}
               >
-                <a href={`tel:${settings.phone}`} className="phone">
-                  {settings.phoneDisplay}
-                </a>
-                <span>{settings.workHours}</span>
+                {!contactLoading && (
+                  <>
+                    <a href={`tel:${settings.phone}`} className="phone">
+                      {settings.phoneDisplay}
+                    </a>
+                    <span>{settings.workHours}</span>
+                  </>
+                )}
               </motion.div>
             </div>
             <motion.div
@@ -447,13 +451,15 @@ function Header({
               >
                 <img src="/img/soc-icon2.svg" alt="WhatsApp" />
               </a>
-              <a
-                href={`tel: ${settings.phoneDisplay}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img src="/img/soc-icon3.svg" alt="Telegram" />
-              </a>
+                {!contactLoading && (
+                  <a
+                    href={`tel: ${settings.phoneDisplay}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img src="/img/soc-icon3.svg" alt="Telegram" />
+                  </a>
+                )}
             </motion.div>
             <motion.button
               type="button"

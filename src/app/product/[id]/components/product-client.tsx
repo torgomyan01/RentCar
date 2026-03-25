@@ -35,12 +35,8 @@ import {
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
-import {
-  formatPhoneMask,
-  phoneMaskOnFocus,
-  phoneMaskOnBlur,
-  phoneMaskOnKeyDown,
-} from '@/lib/phone-mask';
+import { getPhoneDigits } from '@/lib/phone-mask';
+import { InputMask } from '@react-input/mask';
 
 // Helper function to extract prices array from car
 function extractPrices(car: Car): number[] {
@@ -357,6 +353,17 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const startDateFromQuery = searchParams.get('start_date');
   const endDateFromQuery = searchParams.get('end_date');
   const mileageFromQuery = searchParams.get('mileage');
+
+  const backToCatalogHref = useMemo(() => {
+    if (!startDateFromQuery || !endDateFromQuery) return '/search';
+
+    const query = new URLSearchParams({
+      start_date: startDateFromQuery,
+      end_date: endDateFromQuery,
+    });
+    if (mileageFromQuery) query.set('mileage', mileageFromQuery);
+    return `/search?${query.toString()}`;
+  }, [startDateFromQuery, endDateFromQuery, mileageFromQuery]);
   const hasSearchPeriodInQuery = Boolean(
     startDateFromQuery && endDateFromQuery
   );
@@ -421,6 +428,61 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     () => (carDetails ? { ...car, ...carDetails } : car),
     [car, carDetails]
   );
+
+  // CRM/RENTPROG sometimes returns eligibility requirements under different field names.
+  // We try a set of common keys and extract the first positive integer (years).
+  const parseMinYears = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const n = Math.floor(value);
+      return n > 0 ? n : null;
+    }
+    const s = String(value);
+    const match = s.match(/\d+/);
+    if (!match) return null;
+    const n = Number(match[0]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const renterMinAgeYears = useMemo(() => {
+    const carAny = resolvedCar as any;
+    const candidates = [
+      carAny.min_age,
+      carAny.minAge,
+      carAny.age_min,
+      carAny.driver_min_age,
+      carAny.min_driver_age,
+      carAny.required_age,
+      carAny.custom_field_1,
+      carAny.age,
+    ];
+
+    return (
+      parseMinYears(candidates.find((v) => v !== null && v !== undefined)) ??
+      25
+    );
+  }, [resolvedCar]);
+
+  const driverMinExperienceYears = useMemo(() => {
+    const carAny = resolvedCar as any;
+    const candidates = [
+      carAny.min_experience,
+      carAny.min_experience_years,
+      carAny.experience_min,
+      carAny.driver_experience_min,
+      carAny.driving_experience_min,
+      carAny.min_driver_experience,
+      carAny.required_experience,
+      carAny.custom_field_2,
+      carAny.experience_years,
+      carAny.stazh,
+      carAny.experience,
+    ];
+
+    return (
+      parseMinYears(candidates.find((v) => v !== null && v !== undefined)) ?? 3
+    );
+  }, [resolvedCar]);
   const includedMileage = useMemo(() => {
     return getIncludedMileageLimit(rentalDays, resolvedCar?.extra_mileage_km);
   }, [rentalDays, resolvedCar?.extra_mileage_km]);
@@ -867,7 +929,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       return;
     }
 
-    if (!phone.trim()) {
+    if (!getPhoneDigits(phone)) {
       setSubmitStatus({
         type: 'error',
         message: 'Пожалуйста, введите номер телефона',
@@ -970,7 +1032,7 @@ ${selectedOptionsText ? `• Дополнительные опции:\n${selecte
           : 'нет'
       }
 • Депозит: ${depositDisplay}
-• Итого: ${totalPrice.toLocaleString('ru-RU')} ₽
+• Итого: ${finalTotalWithDeposit.toLocaleString('ru-RU')} ₽
       `.trim();
 
       // Format complete message (API will add its own header)
@@ -1193,6 +1255,7 @@ ${pricingInfo}
               { label: `Аренда ${carName} - ${car.year || ''}г.в` },
             ]}
             showBackButton={true}
+            backHref={backToCatalogHref}
           />
 
           <h1>Аренда {carName}</h1>
@@ -1454,11 +1517,11 @@ ${pricingInfo}
                 <ul className="rent-list-items">
                   <li>
                     <span>Возраст арендатора:</span>
-                    <b>от 25 лет</b>
+                    <b>от {renterMinAgeYears} лет</b>
                   </li>
                   <li>
                     <span>Стаж вождения:</span>
-                    <b>от 3 лет</b>
+                    <b>от {driverMinExperienceYears} лет</b>
                   </li>
                   <li>
                     <span>Набор документов:</span>
@@ -1593,7 +1656,7 @@ ${pricingInfo}
                 {extraTimeFee > 0 && (
                   <div className="sum-row">
                     <span>
-                      Нерабочее время ({extraTimeFeeInfo.eventsCount} ×{' '}
+                      Нерабоч. ({extraTimeFeeInfo.eventsCount} ×{' '}
                       {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)
                     </span>
                     <b>+ {extraTimeFee.toLocaleString('ru-RU')} ₽</b>
@@ -1633,14 +1696,15 @@ ${pricingInfo}
                   onChange={(e) => setName(e.target.value)}
                   disabled={isSubmitting}
                 />
-                <input
+                <InputMask
+                  mask="+7 (___) ___-__-__"
+                  replacement={{ _: /\d/ }}
+                  showMask={false}
                   type="tel"
                   placeholder="+7 (___) ___-__-__"
                   value={phone}
-                  onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
-                  onFocus={() => phoneMaskOnFocus(phone, setPhone)}
-                  onBlur={() => phoneMaskOnBlur(phone, setPhone)}
-                  onKeyDown={(e) => phoneMaskOnKeyDown(e, phone, setPhone)}
+                  onChange={(e) => setPhone(e.target.value)}
+                  inputMode="tel"
                   disabled={isSubmitting}
                 />
 

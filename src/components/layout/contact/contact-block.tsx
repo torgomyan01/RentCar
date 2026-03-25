@@ -107,9 +107,11 @@ function ContactBlock() {
           <div className="map-wrap overflow-hidden">
             <div className="map-info overflow-hidden">
               <span>Телефон:</span>
-              <a href={`tel:${settings.phone}`} className="phone">
-                {settings.phoneDisplay}
-              </a>
+              {!loading ? (
+                <a href={`tel:${settings.phoneDisplay}`} className="phone">
+                  {settings.phoneDisplay}
+                </a>
+              ) : null}
               <div className="soc-btns">
                 <a
                   href={settings.whatsappUrl}

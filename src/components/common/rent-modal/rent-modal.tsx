@@ -6,11 +6,9 @@ import {
   calculateExtraTimeFee,
   EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
+import { InputMask } from '@react-input/mask';
 import {
-  formatPhoneMask,
-  phoneMaskOnFocus,
-  phoneMaskOnBlur,
-  phoneMaskOnKeyDown,
+  getPhoneDigits,
 } from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
@@ -252,11 +250,14 @@ const RentModal = ({
     if (contactOnly) {
       const name = contactName.trim();
       const phone = contactPhone.trim();
+      const phoneDigits = getPhoneDigits(contactPhone);
       if (!name) {
         setSubmitStatus({ type: 'error', message: 'Введите имя' });
         return;
       }
-      if (!phone) {
+      // Mask может отображать префикс без цифр (например, "+7 ("),
+      // поэтому валидируем именно цифры.
+      if (!phoneDigits) {
         setSubmitStatus({ type: 'error', message: 'Введите номер телефона' });
         return;
       }
@@ -326,11 +327,12 @@ ${carBlock ? `${carBlock}\n` : ''}
     if (car) {
       const name = contactName.trim();
       const phone = contactPhone.trim();
+      const phoneDigits = getPhoneDigits(contactPhone);
       if (!name) {
         setSubmitStatus({ type: 'error', message: 'Введите имя' });
         return;
       }
-      if (!phone) {
+      if (!phoneDigits) {
         setSubmitStatus({ type: 'error', message: 'Введите номер телефона' });
         return;
       }
@@ -565,7 +567,6 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
             }}
           >
             {formatCarName(car)}
-            {car.year ? `, ${car.year} г.` : ''}
           </p>
         )}
 
@@ -722,17 +723,18 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               onChange={(e) => setContactName(e.target.value)}
               disabled={isSubmitting}
             />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="+7 (___) ___-__-__"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(formatPhoneMask(e.target.value))}
-              onFocus={() => phoneMaskOnFocus(contactPhone, setContactPhone)}
-              onBlur={() => phoneMaskOnBlur(contactPhone, setContactPhone)}
-              onKeyDown={(e) => phoneMaskOnKeyDown(e, contactPhone, setContactPhone)}
-              disabled={isSubmitting}
-            />
+              <InputMask
+                mask="+7 (___) ___-__-__"
+                replacement={{ _: /\d/ }}
+                showMask={false}
+                type="tel"
+                name="phone"
+                placeholder="+7 (___) ___-__-__"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                inputMode="tel"
+                disabled={isSubmitting}
+              />
             {submitStatus && (
               <div className={`submit-status ${submitStatus.type}`}>
                 {submitStatus.message}

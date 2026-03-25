@@ -68,6 +68,57 @@ function getCarRentalPrice(car: Car, days: number): number {
   return getPriceForDays(prices, days);
 }
 
+// Цена на карточке отображается как "от X ₽".
+// Для сортировки берём именно минимальное значение цены из car.prices/price_from,
+// чтобы группировки и порядок были согласованы с тем, что видит пользователь.
+function getCarMinDisplayedPrice(car: Car): number {
+  const pricesArray = car.prices || car.price;
+
+  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
+    if (typeof pricesArray[0] === 'object' && pricesArray[0] !== null) {
+      let minPrice: number | null = null;
+
+      for (const priceItem of pricesArray as any[]) {
+        if (
+          priceItem &&
+          typeof priceItem === 'object' &&
+          'values' in priceItem &&
+          Array.isArray(priceItem.values) &&
+          priceItem.values.length > 0
+        ) {
+          const values = priceItem.values.filter(
+            (v: any) => typeof v === 'number' && Number.isFinite(v)
+          ) as number[];
+          if (values.length === 0) continue;
+
+          const itemMin = Math.min(...values);
+          if (minPrice === null || itemMin < minPrice) minPrice = itemMin;
+        }
+      }
+
+      return minPrice ?? Infinity;
+    }
+
+    if (typeof pricesArray[0] === 'number') {
+      const nums = (pricesArray as unknown as number[]).filter((v) =>
+        Number.isFinite(v)
+      );
+      return nums.length ? Math.min(...nums) : Infinity;
+    }
+  }
+
+  if (typeof car.price === 'number' && Number.isFinite(car.price)) {
+    return car.price > 0 ? car.price : Infinity;
+  }
+
+  if (typeof car.price_from === 'string') {
+    const parsed = Number(car.price_from.replace(/[^\d]/g, ''));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : Infinity;
+  }
+
+  return Infinity;
+}
+
 function SearchPage() {
   const searchParams = useSearchParams();
   const { cars: allCars } = useAppSelector((state) => state.cars);
@@ -299,13 +350,16 @@ function SearchPage() {
 
   const groupedCars = useMemo(() => {
     const grouped = groupCarsByModel(filteredCars);
-    const days = rentalDays || 1;
     return grouped.sort((a, b) => {
-      const aPrice = Math.min(...a.map((c) => getCarRentalPrice(c, days)));
-      const bPrice = Math.min(...b.map((c) => getCarRentalPrice(c, days)));
-      return aPrice - bPrice;
+      // `ProductCard` shows "Стоимость аренды" for `car={mainCar}`, где
+      // `mainCar` берётся как `carGroup[0]`. Поэтому сортируем группы по цене
+      // именно этого первого авто, чтобы порядок на странице совпадал с тем,
+      // что видит пользователь.
+      const aPrice = getCarMinDisplayedPrice(a[0]);
+      const bPrice = getCarMinDisplayedPrice(b[0]);
+      return aPrice - bPrice; // от дешёвых к дорогим
     });
-  }, [filteredCars, rentalDays]);
+  }, [filteredCars]);
   const allCarsByGroup = useMemo(() => {
     const grouped = new Map<string, Car[]>();
     allCars.forEach((car) => {

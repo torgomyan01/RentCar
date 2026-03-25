@@ -11,9 +11,14 @@ interface BreadcrumbItem {
 interface BreadcrumbsProps {
   items: BreadcrumbItem[];
   showBackButton?: boolean;
+  backHref?: string;
 }
 
-function Breadcrumbs({ items, showBackButton = true }: BreadcrumbsProps) {
+function Breadcrumbs({
+  items,
+  showBackButton = true,
+  backHref,
+}: BreadcrumbsProps) {
   const router = useRouter();
 
   return (
@@ -32,7 +37,10 @@ function Breadcrumbs({ items, showBackButton = true }: BreadcrumbsProps) {
       {showBackButton && (
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => {
+            if (backHref) router.push(backHref);
+            else router.back();
+          }}
           className="back-style"
         >
           <img src="/img/back-icon.svg" alt="" />
