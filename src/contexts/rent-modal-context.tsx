@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import RentModal from '@/components/common/rent-modal/rent-modal';
@@ -46,32 +47,34 @@ export const useRentModal = () => {
 export const RentModalProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<RentModalOptions | null>(null);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
-    const mainElement = document.querySelector('.main') as HTMLElement;
-
     if (isOpen) {
-      // Prevent body scroll when modal is open
+      scrollYRef.current = window.scrollY || window.pageYOffset || 0;
       document.body.style.overflow = 'hidden';
-      // Set main height to 100vh
-      if (mainElement) {
-        mainElement.style.height = '100vh';
-      }
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
     } else {
-      // Restore body scroll when modal is closed
       document.body.style.overflow = '';
-      // Remove main height
-      if (mainElement) {
-        mainElement.style.height = '';
-      }
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollYRef.current);
     }
 
-    // Cleanup function
     return () => {
       document.body.style.overflow = '';
-      if (mainElement) {
-        mainElement.style.height = '';
-      }
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
     };
   }, [isOpen]);
 

@@ -2,9 +2,10 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation } from 'swiper/modules';
+import { Navigation, Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 import type { Swiper as SwiperType } from 'swiper';
 import type { Review } from '@/app/actions/reviews';
 import { getServerImageUrl } from '@/lib/uploads';
@@ -62,7 +63,7 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
   return (
     <div className="review-slider-wrapper">
       <Swiper
-        modules={[Navigation]}
+        modules={[Navigation, Pagination]}
         onSwiper={(swiper) => {
           swiperRef.current = swiper;
           // Update global ref when swiper is initialized
@@ -86,6 +87,10 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
             slidesPerView: 3,
             spaceBetween: 30,
           },
+        }}
+        pagination={{
+          el: '.review-slider-pagination',
+          clickable: true,
         }}
         className="review-slider"
         style={{
@@ -162,6 +167,7 @@ export default function ReviewSlider({ reviews }: ReviewSliderProps) {
           );
         })}
       </Swiper>
+      <div className="review-slider-pagination" />
 
       {typeof document !== 'undefined' &&
         createPortal(

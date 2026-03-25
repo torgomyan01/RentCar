@@ -353,9 +353,14 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const startDateFromQuery = searchParams.get('start_date');
   const endDateFromQuery = searchParams.get('end_date');
   const mileageFromQuery = searchParams.get('mileage');
+  const fromPage = searchParams.get('from');
 
   const backToCatalogHref = useMemo(() => {
-    if (!startDateFromQuery || !endDateFromQuery) return '/search';
+    if (fromPage === 'catalog') return '/catalog';
+    if (fromPage === 'search' && (!startDateFromQuery || !endDateFromQuery)) {
+      return '/search';
+    }
+    if (!startDateFromQuery || !endDateFromQuery) return '/catalog';
 
     const query = new URLSearchParams({
       start_date: startDateFromQuery,
@@ -363,7 +368,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     });
     if (mileageFromQuery) query.set('mileage', mileageFromQuery);
     return `/search?${query.toString()}`;
-  }, [startDateFromQuery, endDateFromQuery, mileageFromQuery]);
+  }, [fromPage, startDateFromQuery, endDateFromQuery, mileageFromQuery]);
   const hasSearchPeriodInQuery = Boolean(
     startDateFromQuery && endDateFromQuery
   );
@@ -1011,6 +1016,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
           : '📅 *Период аренды:* не указан';
 
       // Format pricing
+      const totalWithoutDeposit = totalPrice;
+      const totalWithDeposit = totalPrice + depositAmount;
       const pricingInfo = `
 💰 *Стоимость:*
 • Аренда: ${rentalPrice.toLocaleString('ru-RU')} ₽
@@ -1032,7 +1039,8 @@ ${selectedOptionsText ? `• Дополнительные опции:\n${selecte
           : 'нет'
       }
 • Депозит: ${depositDisplay}
-• Итого: ${finalTotalWithDeposit.toLocaleString('ru-RU')} ₽
+• Итого без депозита: ${totalWithoutDeposit.toLocaleString('ru-RU')} ₽
+• Итого с депозитом: ${totalWithDeposit.toLocaleString('ru-RU')} ₽
       `.trim();
 
       // Format complete message (API will add its own header)
@@ -1105,6 +1113,8 @@ ${pricingInfo}
     rentalPrice,
     selectedOptionsList,
     totalPrice,
+    depositAmount,
+    finalTotalWithDeposit,
     depositDisplay,
     extraTimeFee,
     extraTimeFeeInfo.eventsCount,
@@ -1251,7 +1261,7 @@ ${pricingInfo}
           <Breadcrumbs
             items={[
               { label: 'Главная', href: '/' },
-              { label: 'Каталог автомобилей', href: '/search' },
+              { label: 'Каталог автомобилей', href: backToCatalogHref },
               { label: `Аренда ${carName} - ${car.year || ''}г.в` },
             ]}
             showBackButton={true}
@@ -1274,21 +1284,19 @@ ${pricingInfo}
                 </div>
               )}
               <div
-                className={
-                  galleryLoaded
-                    ? 'opacity-100'
-                    : 'opacity-0 pointer-events-none'
-                }
+                className={`gallery-sliders ${
+                  galleryLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
                 style={{ transition: 'opacity 0.25s ease-out' }}
               >
                 <Swiper
                   modules={[Navigation, Thumbs]}
                   thumbs={{ swiper: thumbsSwiper }}
                   navigation
-                  className="main-slider h-[250px]! sm:h-[350px]!"
+                  className="main-slider h-[250px]! sm:h-[350px]! lg:h-[473px]!"
                 >
                   {carImages.map((image, index) => (
-                    <SwiperSlide key={index} className="h-[400px]">
+                    <SwiperSlide key={index} className="h-[350px] lg:h-[473px]">
                       {index === 0 && groupVideoLink && (
                         <div
                           className="play"
@@ -1302,9 +1310,9 @@ ${pricingInfo}
                       <Image
                         src={getServerImageUrl(image)}
                         alt={carName}
-                        className="h-[400px] object-cover rounded-[30px] cursor-default min-[768px]:cursor-zoom-in"
+                        className="h-[350px] lg:h-[473px] object-cover rounded-[30px] cursor-default min-[768px]:cursor-zoom-in"
                         width={761}
-                        height={400}
+                        height={473}
                         onLoad={handleGalleryImageLoad}
                         onClick={() => openGalleryLightbox(index)}
                       />
@@ -1315,9 +1323,22 @@ ${pricingInfo}
                 <Swiper
                   modules={[Navigation, Thumbs]}
                   onSwiper={setThumbsSwiper}
-                  className="thumbs-slider h-[100px]!"
+                  className="thumbs-slider"
                   spaceBetween={10}
-                  slidesPerView={4}
+                  slidesPerView={5}
+                  direction="vertical"
+                  breakpoints={{
+                    0: {
+                      direction: 'horizontal',
+                      slidesPerView: 4,
+                      spaceBetween: 10,
+                    },
+                    1024: {
+                      direction: 'vertical',
+                      slidesPerView: 5,
+                      spaceBetween: 12,
+                    },
+                  }}
                 >
                   {carImages.map((image, index) => (
                     <SwiperSlide key={index}>

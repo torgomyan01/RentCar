@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import { getServerImageUrl } from '@/lib/uploads';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 interface ProductCardProps {
   car: Car;
@@ -271,6 +271,7 @@ function ProductCard({
   otherInfo,
 }: ProductCardProps) {
   const { openModal } = useRentModal();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // Get all unique colors from cars array
@@ -360,12 +361,14 @@ function ProductCard({
     if (startDate) query.set('start_date', startDate);
     if (endDate) query.set('end_date', endDate);
     if (mileage) query.set('mileage', mileage);
+    if (pathname === '/search') query.set('from', 'search');
+    if (pathname === '/catalog') query.set('from', 'catalog');
 
     const queryString = query.toString();
     return queryString
       ? `/product/${car.id}?${queryString}`
       : `/product/${car.id}`;
-  }, [car.id, searchParams]);
+  }, [car.id, searchParams, pathname]);
 
   const handleTooltipClick = (e: React.MouseEvent) => {
     e.preventDefault();

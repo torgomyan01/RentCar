@@ -1,14 +1,17 @@
 'use client';
 
+import { useMemo, useEffect, useState } from 'react';
 import { useAppSelector } from '@/store/store';
 import type { Car } from '@/lib/rentprog-api-server';
 import ProductCard from '@/components/common/product-card/product-card';
 import Link from 'next/link';
 import { SITE_URL } from '@/utils/consts';
+import { getCarGroupKey } from '@/lib/car-group-key';
 
 function OurCars() {
   // Cars are already loaded by CarsProvider in the root layout
   const { cars, loading, error } = useAppSelector((state) => state.cars);
+  const [homeGroupKeys, setHomeGroupKeys] = useState<string[]>([]);
 
   const carFeatures = [
     {
@@ -25,43 +28,58 @@ function OurCars() {
     },
   ];
 
-  // Group cars by model/name (same car, different colors)
-  const groupCarsByModel = (cars: Car[]): Car[][] => {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/home-car-groups');
+        if (!res.ok) return;
+        const data = await res.json();
+        const keys = Array.isArray(data?.groupKeys)
+          ? data.groupKeys.map((v: unknown) => String(v || '').trim()).filter(Boolean)
+          : [];
+        if (!cancelled) setHomeGroupKeys(keys);
+      } catch {
+        // ignore: fallback logic will show default list
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const groupedCars = useMemo(() => {
     const grouped = new Map<string, Car[]>();
 
     cars.forEach((car) => {
-      // Create a unique key based on car name or make+model+year
-      // Use car_name if available, otherwise use make+model+year combination
-      let key = '';
-      if (car.car_name) {
-        key = car.car_name.trim();
-      } else {
-        const make = (car.make || '').trim();
-        const model = (car.model || '').trim();
-        const year = car.year ? String(car.year) : '';
-        key = `${make}_${model}_${year}`.trim();
-      }
-
-      // Fallback to code if available
-      if (!key && car.code) {
-        // Extract base code without color suffix if exists
-        key = car.code.split('_')[0] || car.code;
-      }
-
-      // Final fallback to ID
-      if (!key && car.id) {
-        key = `car_${car.id}`;
-      }
-
+      const key = getCarGroupKey(car);
       if (!grouped.has(key)) {
         grouped.set(key, []);
       }
       grouped.get(key)!.push(car);
     });
 
-    // Convert map to array
-    return Array.from(grouped.values());
-  };
+    return Array.from(grouped.entries()).map(([key, carsInGroup]) => ({
+      key,
+      cars: carsInGroup,
+    }));
+  }, [cars]);
+
+  const visibleGroups = useMemo(() => {
+    if (groupedCars.length === 0) return [];
+
+    if (homeGroupKeys.length > 0) {
+      const map = new Map(groupedCars.map((g) => [g.key, g.cars]));
+      const selected = homeGroupKeys
+        .map((key) => map.get(key))
+        .filter((group): group is Car[] => Boolean(group));
+      if (selected.length > 0) {
+        return selected.slice(0, 6);
+      }
+    }
+
+    return groupedCars.slice(0, 6).map((g) => g.cars);
+  }, [groupedCars, homeGroupKeys]);
 
   return (
     <div className="our-cars">
@@ -98,16 +116,14 @@ function OurCars() {
             <>
               <div className="our-cars-items">
                 {cars.length > 0 ? (
-                  groupCarsByModel(cars)
-                    .slice(0, 6)
-                    .map((carGroup, index) => (
-                      <ProductCard
-                        key={carGroup[0].id || carGroup[0].car_name || index}
-                        car={carGroup[0]}
-                        cars={carGroup}
-                        index={index}
-                      />
-                    ))
+                  visibleGroups.map((carGroup, index) => (
+                    <ProductCard
+                      key={carGroup[0].id || carGroup[0].car_name || index}
+                      car={carGroup[0]}
+                      cars={carGroup}
+                      index={index}
+                    />
+                  ))
                 ) : (
                   <div style={{ textAlign: 'center', padding: '40px' }}>
                     <p>Автомобили не найдены</p>

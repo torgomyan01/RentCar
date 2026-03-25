@@ -96,3 +96,15 @@ model CarServicePricing {
 
   @@map("car_service_pricing")
 }
+
+// Home page: admin-selected car groups to display in "Наши автомобили"
+model HomeCarGroupSelection {
+  groupKey   String   @id
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive, order])
+  @@map("home_car_group_selection")
+}

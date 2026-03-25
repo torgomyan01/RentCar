@@ -68,6 +68,12 @@ function getCarRentalPrice(car: Car, days: number): number {
   return getPriceForDays(prices, days);
 }
 
+function normalizeCarType(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'минивен') return 'минивэн';
+  return normalized;
+}
+
 // Цена на карточке отображается как "от X ₽".
 // Для сортировки берём именно минимальное значение цены из car.prices/price_from,
 // чтобы группировки и порядок были согласованы с тем, что видит пользователь.
@@ -320,7 +326,7 @@ function SearchPage() {
     const types = new Set<string>();
     carsData.forEach((car) => {
       if (car.car_type && car.car_type.trim()) {
-        types.add(car.car_type.trim());
+        types.add(normalizeCarType(car.car_type));
       }
     });
     return Array.from(types).sort();
@@ -344,7 +350,7 @@ function SearchPage() {
       return cars;
     }
     return cars.filter(
-      (car) => car.car_type && activeTabs.includes(car.car_type)
+      (car) => car.car_type && activeTabs.includes(normalizeCarType(car.car_type))
     );
   }, [cars, activeTabs]);
 

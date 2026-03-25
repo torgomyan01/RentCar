@@ -206,6 +206,14 @@
   content: '\f0c9';
 }
 
+.fa-house:before {
+  content: '\f015';
+}
+
+.fa-grip-vertical:before {
+  content: '\f047';
+}
+
 /*---------------------------------*/
 
 @font-face {

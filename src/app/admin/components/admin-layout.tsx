@@ -66,6 +66,7 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
   const menuItems = [
     { label: 'Dashboard', href: '/admin', icon: 'fa-chart-line' },
     { label: 'Автомобили', href: '/admin/cars', icon: 'fa-car' },
+    { label: 'Главная: авто', href: '/admin/home-cars', icon: 'fa-house' },
     { label: 'Telegram', href: '/admin/telegram', icon: 'fa-paper-plane' },
     { label: 'Настройки', href: '/admin/settings', icon: 'fa-gear' },
     { label: 'Создать пользователя', href: '/admin/users/create', icon: 'fa-user-plus' },
