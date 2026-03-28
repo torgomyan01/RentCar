@@ -2694,6 +2694,10 @@ a {
     margin-top: 30px;
   }
 
+  .rent-time-mobile-trigger {
+    display: none;
+  }
+
   .btn {
     padding: 14px 28px;
     border-radius: 30px;
@@ -2806,18 +2810,80 @@ a {
     }
 
     .rent-info {
-      position: sticky;
-      bottom: 76px;
-      z-index: 35;
-      margin: 0 -6px;
-      padding: 10px 10px 6px;
-      border-radius: 14px 14px 0 0;
-      background: rgba(255, 255, 255, 0.97);
-      backdrop-filter: blur(8px);
-      box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.07);
+      display: none;
+    }
+
+    .rent-time-mobile-trigger {
+      display: block;
+      margin-top: 6px;
+
+      .btn {
+        width: 100%;
+        height: 46px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 13px;
+      }
+    }
+
+    .rent-time-mobile-summary {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .rent-time-mobile-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10030;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .rent-time-mobile-modal {
+      width: 100%;
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+      padding: 16px 14px calc(14px + env(safe-area-inset-bottom));
+      max-height: 80dvh;
+      overflow-y: auto;
+
+      h3 {
+        font-size: 16px;
+        text-align: center;
+        margin-bottom: 10px;
+      }
 
       .field {
         margin-bottom: 12px;
+      }
+
+      .rent-note {
+        margin-top: 8px;
+
+        p {
+          font-size: 13px;
+          line-height: 1.35;
+          margin-bottom: 10px;
+        }
+      }
+    }
+
+    .rent-time-mobile-modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+
+      .btn {
+        height: 42px;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
       }
     }
 

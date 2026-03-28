@@ -294,7 +294,11 @@ function getSeasonWindowForDate(
       startDate = currentYearStart;
       endDate = new Date(ref.getFullYear() + 1, endPart.month - 1, endPart.day);
     } else {
-      startDate = new Date(ref.getFullYear() - 1, startPart.month - 1, startPart.day);
+      startDate = new Date(
+        ref.getFullYear() - 1,
+        startPart.month - 1,
+        startPart.day
+      );
       endDate = new Date(ref.getFullYear(), endPart.month - 1, endPart.day);
     }
   }
@@ -312,17 +316,6 @@ function resolvePricingForDate(
     ? ((car as any).seasons as SeasonLike[])
     : [];
 
-  let activeSeason: { seasonId: number | string | null; endDate: Date } | null =
-    null;
-  for (const season of seasons) {
-    const window = getSeasonWindowForDate(season, referenceDate);
-    if (!window) continue;
-    if (referenceDate >= window.startDate && referenceDate <= window.endDate) {
-      activeSeason = { seasonId: window.seasonId, endDate: window.endDate };
-      break;
-    }
-  }
-
   if (Array.isArray(pricesArray) && pricesArray.length > 0) {
     if (
       typeof pricesArray[0] === 'object' &&
@@ -330,39 +323,50 @@ function resolvePricingForDate(
       'values' in pricesArray[0]
     ) {
       const items = pricesArray as PriceItem[];
-      if (activeSeason?.seasonId !== null && activeSeason?.seasonId !== undefined) {
-        const bySeason = items.find(
-          (item) => String(item.season_id ?? '') === String(activeSeason?.seasonId)
-        );
-        if (bySeason) {
+      // CRM rule:
+      // - prices[0] -> default prices
+      // - prices[1..] -> correspond by order to seasons[1..]
+      const defaultItem = items[0] || ({} as PriceItem);
+      const seasonalPriceItems = items.slice(1);
+      const seasonalDefinitions = seasons.slice(1);
+
+      for (let i = 0; i < seasonalDefinitions.length; i += 1) {
+        const season = seasonalDefinitions[i];
+        const seasonPriceItem = seasonalPriceItems[i];
+        if (!seasonPriceItem) continue;
+
+        const window = getSeasonWindowForDate(season, referenceDate);
+        if (!window) continue;
+
+        if (
+          referenceDate >= window.startDate &&
+          referenceDate <= window.endDate
+        ) {
           return {
-            prices: normalizePrices(bySeason.values),
-            seasonEndDate: activeSeason.endDate,
+            prices: normalizePrices(seasonPriceItem.values),
+            seasonEndDate: window.endDate,
           };
         }
       }
 
-      const defaultItem =
-        items.find((item) => item.season_id === null) ||
-        items[0] ||
-        ({} as PriceItem);
+      // Not in seasonal window or no seasonal price item -> use default.
       return {
         prices: normalizePrices(defaultItem.values),
-        seasonEndDate: activeSeason?.endDate || null,
+        seasonEndDate: null,
       };
     }
 
     if (typeof pricesArray[0] === 'number') {
       return {
         prices: normalizePrices(pricesArray as unknown as number[]),
-        seasonEndDate: activeSeason?.endDate || null,
+        seasonEndDate: null,
       };
     }
   }
 
   return {
     prices: [2500, 2250, 2000, 1900, 1700],
-    seasonEndDate: activeSeason?.endDate || null,
+    seasonEndDate: null,
   };
 }
 
@@ -496,19 +500,21 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     [car, carDetails]
   );
 
-  // CRM/RENTPROG sometimes returns eligibility requirements under different field names.
-  // We try a set of common keys and extract the first positive integer (years).
-  const parseMinYears = (value: unknown): number | null => {
+  // Parse eligibility years with sanity bounds to ignore unrelated fields (e.g. mileage limits).
+  const parseMinYears = (
+    value: unknown,
+    { min = 1, max = 100 }: { min?: number; max?: number } = {}
+  ): number | null => {
     if (value === null || value === undefined) return null;
     if (typeof value === 'number' && Number.isFinite(value)) {
       const n = Math.floor(value);
-      return n > 0 ? n : null;
+      return n >= min && n <= max ? n : null;
     }
     const s = String(value);
     const match = s.match(/\d+/);
     if (!match) return null;
     const n = Number(match[0]);
-    return Number.isFinite(n) && n > 0 ? n : null;
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
   };
 
   const renterMinAgeYears = useMemo(() => {
@@ -520,13 +526,14 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       carAny.driver_min_age,
       carAny.min_driver_age,
       carAny.required_age,
-      carAny.custom_field_1,
       carAny.age,
     ];
 
     return (
-      parseMinYears(candidates.find((v) => v !== null && v !== undefined)) ??
-      25
+      parseMinYears(candidates.find((v) => v !== null && v !== undefined), {
+        min: 18,
+        max: 80,
+      }) ?? 25
     );
   }, [resolvedCar]);
 
@@ -540,14 +547,16 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       carAny.driving_experience_min,
       carAny.min_driver_experience,
       carAny.required_experience,
-      carAny.custom_field_2,
       carAny.experience_years,
       carAny.stazh,
       carAny.experience,
     ];
 
     return (
-      parseMinYears(candidates.find((v) => v !== null && v !== undefined)) ?? 3
+      parseMinYears(candidates.find((v) => v !== null && v !== undefined), {
+        min: 1,
+        max: 60,
+      }) ?? 3
     );
   }, [resolvedCar]);
   const includedMileage = useMemo(() => {
@@ -804,8 +813,9 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   }, [carGroup]);
 
   const pricingForSelectedDate = useMemo(() => {
-    return resolvePricingForDate(resolvedCar, startDate);
-  }, [resolvedCar, startDate]);
+    const sourceCar = carDetails || resolvedCar;
+    return resolvePricingForDate(sourceCar, startDate);
+  }, [carDetails, resolvedCar, startDate]);
   const prices = pricingForSelectedDate.prices;
 
   const priceRanges = [
@@ -1342,7 +1352,9 @@ ${pricingInfo}
               )}
               <div
                 className={`gallery-sliders ${
-                  galleryLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  galleryLoaded
+                    ? 'opacity-100'
+                    : 'opacity-0 pointer-events-none'
                 }`}
                 style={{ transition: 'opacity 0.25s ease-out' }}
               >
@@ -1567,7 +1579,9 @@ ${pricingInfo}
                               placement="top"
                               isOpen={activeOptionTooltipId === option.id}
                               onOpenChange={(open) =>
-                                setActiveOptionTooltipId(open ? option.id : null)
+                                setActiveOptionTooltipId(
+                                  open ? option.id : null
+                                )
                               }
                               classNames={{
                                 content: 'px-4! py-1! max-w-[260px]!',
@@ -1661,13 +1675,13 @@ ${pricingInfo}
                     )}
                   </span>
                   <div
-              style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                  justifyContent: 'flex-end',
-                }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-end',
+                    }}
                   >
                     {oldRentalPrice > rentalPrice && (
                       <>

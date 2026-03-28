@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Car } from '@/lib/rentprog-api-server';
 import {
   calculateExtraTimeFee,
@@ -95,6 +95,9 @@ const RentModal = ({
     message: string;
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMobileTimeModalOpen, setIsMobileTimeModalOpen] = useState(false);
+  const [mobileTempStartTime, setMobileTempStartTime] = useState('09:00');
+  const [mobileTempEndTime, setMobileTempEndTime] = useState('09:00');
 
   useEffect(() => {
     if (isOpen) {
@@ -107,6 +110,7 @@ const RentModal = ({
       setContactName('');
       setContactPhone('');
       setSubmitStatus(null);
+      setIsMobileTimeModalOpen(false);
     }
   }, [isOpen]);
 
@@ -459,6 +463,13 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
   const startOutside = extraTimeFeeInfo.startOutside;
   const endOutside = extraTimeFeeInfo.endOutside;
   const showNonBusinessHoursInfo = extraTimeFeeInfo.hasAnyExtraFee;
+  const mobileExtraTimeFeeInfo = useMemo(
+    () => calculateExtraTimeFee(mobileTempStartTime, mobileTempEndTime),
+    [mobileTempStartTime, mobileTempEndTime]
+  );
+  const mobileStartOutside = mobileExtraTimeFeeInfo.startOutside;
+  const mobileEndOutside = mobileExtraTimeFeeInfo.endOutside;
+  const showMobileNonBusinessHoursInfo = mobileExtraTimeFeeInfo.hasAnyExtraFee;
 
   const renderTimeSlider = (
     label: string,
@@ -499,6 +510,18 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
         </div>
       </div>
     );
+  };
+
+  const handleOpenMobileTimeModal = () => {
+    setMobileTempStartTime(startTime);
+    setMobileTempEndTime(endTime);
+    setIsMobileTimeModalOpen(true);
+  };
+
+  const handleApplyMobileTimeModal = () => {
+    setStartTime(mobileTempStartTime);
+    setEndTime(mobileTempEndTime);
+    setIsMobileTimeModalOpen(false);
   };
 
   if (!isOpen && !isClosing) return null;
@@ -709,6 +732,18 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
                 </div>
               )}
             </div>
+            <div className="rent-time-mobile-trigger">
+              <button
+                type="button"
+                className="btn red-btn"
+                onClick={handleOpenMobileTimeModal}
+              >
+                Выбрать время
+              </button>
+              <div className="rent-time-mobile-summary">
+                {startTime} - {endTime}
+              </div>
+            </div>
           </div>
         )}
 
@@ -792,6 +827,82 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
           </button>
         </div>
       </div>
+      {isMobileTimeModalOpen && !contactOnly && (
+        <div
+          className="rent-time-mobile-modal-overlay"
+          onClick={() => setIsMobileTimeModalOpen(false)}
+        >
+          <div
+            className="rent-time-mobile-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Выберите время аренды</h3>
+            <div className="field time-field">
+              {renderTimeSlider(
+                'Время начала аренды',
+                mobileTempStartTime,
+                setMobileTempStartTime
+              )}
+            </div>
+            <div className="field time-field">
+              {renderTimeSlider(
+                'Время окончания аренды',
+                mobileTempEndTime,
+                setMobileTempEndTime
+              )}
+            </div>
+
+            {showMobileNonBusinessHoursInfo && (
+              <div className="rent-note">
+                <p>
+                  За выдачу/прием автомобиля вне рабочего времени взимается доп.
+                  плата
+                </p>
+                <div className="rent-fee">
+                  <span>9.00 - 18.00</span>
+                  <span className="border border-none!"></span>
+                  <span className="paid">без доплат</span>
+                </div>
+                {mobileStartOutside && (
+                  <div className="rent-fee">
+                    <span>Выдача: {mobileTempStartTime}</span>
+                    <span className="border border-none!"></span>
+                    <span className="paid">
+                      + {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
+                )}
+                {mobileEndOutside && (
+                  <div className="rent-fee">
+                    <span>Возврат: {mobileTempEndTime}</span>
+                    <span className="border border-none!"></span>
+                    <span className="paid">
+                      + {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="rent-time-mobile-modal-actions">
+              <button
+                type="button"
+                className="btn border-btn"
+                onClick={() => setIsMobileTimeModalOpen(false)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn red-btn"
+                onClick={handleApplyMobileTimeModal}
+              >
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
