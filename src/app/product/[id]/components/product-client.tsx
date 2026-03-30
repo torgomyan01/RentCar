@@ -9,6 +9,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react';
+import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MainTemplate from '@/components/common/main-template/main-template';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
@@ -500,6 +501,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     [car, carDetails]
   );
 
+  console.log(resolvedCar);
+
   // Parse eligibility years with sanity bounds to ignore unrelated fields (e.g. mileage limits).
   const parseMinYears = (
     value: unknown,
@@ -530,10 +533,13 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     ];
 
     return (
-      parseMinYears(candidates.find((v) => v !== null && v !== undefined), {
-        min: 18,
-        max: 80,
-      }) ?? 25
+      parseMinYears(
+        candidates.find((v) => v !== null && v !== undefined),
+        {
+          min: 18,
+          max: 80,
+        }
+      ) ?? 25
     );
   }, [resolvedCar]);
 
@@ -553,10 +559,13 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     ];
 
     return (
-      parseMinYears(candidates.find((v) => v !== null && v !== undefined), {
-        min: 1,
-        max: 60,
-      }) ?? 3
+      parseMinYears(
+        candidates.find((v) => v !== null && v !== undefined),
+        {
+          min: 1,
+          max: 60,
+        }
+      ) ?? 3
     );
   }, [resolvedCar]);
   const includedMileage = useMemo(() => {
@@ -594,13 +603,14 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchCarDetails = async () => {
+    const fetchCarDetails: () => Promise<void> = async () => {
       if (!car?.id) return;
       try {
-        const response = await fetch(`/api/cars/${car.id}/data`);
-        if (!response.ok) return;
+        const response = await axios.get<{ car?: Car }>(
+          `/api/cars/${car.id}/data`
+        );
+        const data = response.data;
 
-        const data: { car?: Car } = await response.json();
         if (!cancelled && data.car) {
           setCarDetails(data.car);
         }
@@ -1089,7 +1099,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 💰 *Стоимость:*
 • Аренда: ${rentalPrice.toLocaleString('ru-RU')} ₽
 ${selectedOptionsText ? `• Дополнительные опции:\n${selectedOptionsText}` : ''}
-• Доплата за нерабочее время: ${
+• Доплата за Нерабоч время: ${
         extraTimeFee > 0
           ? `+ ${extraTimeFee.toLocaleString('ru-RU')} ₽ (${extraTimeFeeInfo.eventsCount} × ${EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)`
           : 'нет'

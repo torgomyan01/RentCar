@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
 import { useRentModal } from '@/contexts/rent-modal-context';
-import { useContactSettings } from '@/hooks/use-contact-settings';
+import type { ContactSettings } from '@/hooks/use-contact-settings';
 
 declare global {
   interface Window {
@@ -27,14 +27,18 @@ declare global {
   }
 }
 
-function ContactBlock() {
+interface ContactBlockProps {
+  initialSettings: ContactSettings;
+}
+
+function ContactBlock({ initialSettings }: ContactBlockProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<{ destroy: () => void } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [ymapsReady, setYmapsReady] = useState(false);
   const mapShownRef = useRef(false);
   const { openModal } = useRentModal();
-  const { settings, loading } = useContactSettings();
+  const settings = initialSettings;
 
   useEffect(() => {
     setIsMounted(true);
@@ -44,12 +48,12 @@ function ContactBlock() {
   const lng = settings.mapCenterLng;
   const zoom = settings.mapZoom;
 
-  const showMap = isMounted && ymapsReady && !loading;
+  const showMap = isMounted && ymapsReady;
   if (showMap) mapShownRef.current = true;
   const renderMap = mapShownRef.current;
 
   useEffect(() => {
-    if (!renderMap || !window.ymaps || loading || !mapRef.current) return;
+    if (!renderMap || !window.ymaps || !mapRef.current) return;
 
     window.ymaps.ready(() => {
       if (!mapRef.current || mapInstanceRef.current) return;
@@ -87,7 +91,7 @@ function ContactBlock() {
         mapInstanceRef.current = null;
       }
     };
-  }, [renderMap, loading, lat, lng, zoom]);
+  }, [renderMap, lat, lng, zoom]);
 
   return (
     <>
@@ -107,11 +111,9 @@ function ContactBlock() {
           <div className="map-wrap overflow-hidden">
             <div className="map-info overflow-hidden">
               <span>Телефон:</span>
-              {!loading ? (
-                <a href={`tel:${settings.phoneDisplay}`} className="phone">
-                  {settings.phoneDisplay}
-                </a>
-              ) : null}
+              <a href={`tel:${settings.phoneDisplay}`} className="phone">
+                {settings.phoneDisplay}
+              </a>
               <div className="soc-btns">
                 <a
                   href={settings.whatsappUrl}

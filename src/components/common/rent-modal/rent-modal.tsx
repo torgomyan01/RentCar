@@ -7,9 +7,7 @@ import {
   EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
 import { InputMask } from '@react-input/mask';
-import {
-  getPhoneDigits,
-} from '@/lib/phone-mask';
+import { getPhoneDigits } from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -360,7 +358,7 @@ ${car.year ? `*Год:* ${car.year}` : ''}
 ${car.color ? `*Цвет:* ${car.color}` : ''}
 
 📅 *Период аренды:* ${periodText}
-💼 *Нерабочее время:* ${
+💼 *Нерабоч время:* ${
         extraTimeFeeInfo.hasAnyExtraFee
           ? `да (+ ${extraTimeFeeInfo.totalFee.toLocaleString('ru-RU')} ₽: ${extraTimeFeeInfo.eventsCount} × ${EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)`
           : 'нет'
@@ -758,18 +756,18 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               onChange={(e) => setContactName(e.target.value)}
               disabled={isSubmitting}
             />
-              <InputMask
-                mask="+7 (___) ___-__-__"
-                replacement={{ _: /\d/ }}
-                showMask={false}
-                type="tel"
-                name="phone"
-                placeholder="+7 (___) ___-__-__"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                inputMode="tel"
-                disabled={isSubmitting}
-              />
+            <InputMask
+              mask="+7 (___) ___-__-__"
+              replacement={{ _: /\d/ }}
+              showMask={false}
+              type="tel"
+              name="phone"
+              placeholder="+7 (___) ___-__-__"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              inputMode="tel"
+              disabled={isSubmitting}
+            />
             {submitStatus && (
               <div className={`submit-status ${submitStatus.type}`}>
                 {submitStatus.message}
