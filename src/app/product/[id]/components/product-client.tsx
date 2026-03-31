@@ -310,7 +310,7 @@ function getSeasonWindowForDate(
 function resolvePricingForDate(
   car: Car,
   startDateStr: string | null
-): { prices: number[]; seasonEndDate: Date | null } {
+): { prices: number[]; tariffWarningDate: Date | null } {
   const pricesArray = car.prices || car.price;
   const referenceDate = parseSearchDate(startDateStr) || new Date();
   const seasons = Array.isArray((car as any)?.seasons)
@@ -345,29 +345,42 @@ function resolvePricingForDate(
         ) {
           return {
             prices: normalizePrices(seasonPriceItem.values),
-            seasonEndDate: window.endDate,
+            // In season: warning should show end of active seasonal tariff.
+            tariffWarningDate: window.endDate,
           };
         }
       }
 
-      // Not in seasonal window or no seasonal price item -> use default.
+      // Not in seasonal window -> use default and show warning until ближайший
+      // upcoming seasonal start (e.g. "до 01 июня ... включительно").
+      let nearestSeasonStart: Date | null = null;
+      for (const season of seasonalDefinitions) {
+        const window = getSeasonWindowForDate(season, referenceDate);
+        if (!window) continue;
+        if (window.startDate > referenceDate) {
+          if (!nearestSeasonStart || window.startDate < nearestSeasonStart) {
+            nearestSeasonStart = window.startDate;
+          }
+        }
+      }
+
       return {
         prices: normalizePrices(defaultItem.values),
-        seasonEndDate: null,
+        tariffWarningDate: nearestSeasonStart,
       };
     }
 
     if (typeof pricesArray[0] === 'number') {
       return {
         prices: normalizePrices(pricesArray as unknown as number[]),
-        seasonEndDate: null,
+        tariffWarningDate: null,
       };
     }
   }
 
   return {
     prices: [2500, 2250, 2000, 1900, 1700],
-    seasonEndDate: null,
+    tariffWarningDate: null,
   };
 }
 
@@ -393,13 +406,55 @@ interface AdditionalOption {
   showTooltip: boolean;
 }
 
-function getTariffLabelForDays(days: number): string {
-  if (days <= 0) return '';
-  if (days <= 2) return '1–2 дня';
-  if (days <= 7) return '3–6 дней';
-  if (days <= 15) return '7–14 дней';
-  if (days <= 31) return '15–30 дней';
-  return '30 + дней';
+interface PricePeriodRange {
+  min: number;
+  max: number;
+  label: string;
+}
+
+function parsePricePeriods(raw: unknown): PricePeriodRange[] {
+  if (!Array.isArray(raw)) {
+    return [
+      { min: 1, max: 2, label: '1-2 дня' },
+      { min: 3, max: 7, label: '3-7 дней' },
+      { min: 8, max: 15, label: '8-15 дней' },
+      { min: 16, max: 31, label: '16-31 дней' },
+      { min: 32, max: Number.POSITIVE_INFINITY, label: '32 + дней' },
+    ];
+  }
+
+  const parsed = raw
+    .map((value) => String(value || '').trim())
+    .map((value) => {
+      const m = value.match(/(\d+)\s*-\s*(\d+)/);
+      if (!m) return null;
+      const min = Number(m[1]);
+      const max = Number(m[2]);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max < min) {
+        return null;
+      }
+      return { min, max, label: `${min}-${max} дней` };
+    })
+    .filter((v): v is PricePeriodRange => Boolean(v));
+
+  if (parsed.length === 0) {
+    return [
+      { min: 1, max: 2, label: '1-2 дня' },
+      { min: 3, max: 7, label: '3-7 дней' },
+      { min: 8, max: 15, label: '8-15 дней' },
+      { min: 16, max: 31, label: '16-31 дней' },
+      { min: 32, max: Number.POSITIVE_INFINITY, label: '32 + дней' },
+    ];
+  }
+
+  const lastMax = parsed[parsed.length - 1].max;
+  parsed.push({
+    min: lastMax + 1,
+    max: Number.POSITIVE_INFINITY,
+    label: `${lastMax + 1} + дней`,
+  });
+
+  return parsed;
 }
 
 export default function ProductClient({ car, allCars }: ProductClientProps) {
@@ -827,32 +882,41 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     return resolvePricingForDate(sourceCar, startDate);
   }, [carDetails, resolvedCar, startDate]);
   const prices = pricingForSelectedDate.prices;
+  const pricePeriods = useMemo(() => {
+    const sourceCar = (carDetails || resolvedCar) as any;
+    return parsePricePeriods(sourceCar?.price_periods);
+  }, [carDetails, resolvedCar]);
 
-  const priceRanges = [
-    { label: '1-2 дня', price: prices[0] },
-    { label: '3-6 дней', price: prices[1] },
-    { label: '7-14 дней', price: prices[2] },
-    { label: '15-30 дней', price: prices[3] },
-    { label: '30 + дней', price: prices[4] },
-  ];
+  const priceRanges = useMemo(
+    () =>
+      pricePeriods.map((range, index) => ({
+        label: range.label,
+        price: prices[index] ?? prices[prices.length - 1] ?? 0,
+      })),
+    [pricePeriods, prices]
+  );
   const tariffValidUntilText = useMemo(() => {
-    const endDate = pricingForSelectedDate.seasonEndDate;
-    if (!endDate) return null;
+    const warningDate = pricingForSelectedDate.tariffWarningDate;
+    if (!warningDate) return null;
 
     return new Intl.DateTimeFormat('ru-RU', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-    }).format(endDate);
-  }, [pricingForSelectedDate.seasonEndDate]);
+    }).format(warningDate);
+  }, [pricingForSelectedDate.tariffWarningDate]);
 
-  // Calculate price based on rental days
+  // Calculate daily price based on CRM price_periods and selected tariff prices.
   const getPriceForDays = (days: number): number => {
-    if (days <= 2) return prices[0];
-    if (days <= 7) return prices[1];
-    if (days <= 15) return prices[2];
-    if (days <= 31) return prices[3];
-    return prices[4];
+    if (!days || days < 1) return prices[0] ?? 0;
+    const idx = pricePeriods.findIndex((range) => days >= range.min && days <= range.max);
+    if (idx >= 0) return prices[idx] ?? prices[prices.length - 1] ?? 0;
+    return prices[prices.length - 1] ?? 0;
+  };
+  const getTariffLabelForDays = (days: number): string => {
+    if (!days || days < 1) return '';
+    const range = pricePeriods.find((r) => days >= r.min && days <= r.max);
+    return range?.label || pricePeriods[pricePeriods.length - 1]?.label || '';
   };
 
   const rentalPrice = useMemo(() => {
