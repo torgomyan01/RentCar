@@ -324,18 +324,17 @@ function resolvePricingForDate(
       'values' in pricesArray[0]
     ) {
       const items = pricesArray as PriceItem[];
-      // CRM rule:
-      // - prices[0] -> default prices
-      // - prices[1..] -> correspond by order to seasons[1..]
-      const defaultItem = items[0] || ({} as PriceItem);
-      const seasonalPriceItems = items.slice(1);
+      const defaultItem =
+        items.find((item) => item && item.season_id == null) ||
+        items[0] ||
+        ({} as PriceItem);
+      const seasonalPriceItems = items.filter(
+        (item) => item && item.season_id != null
+      );
       const seasonalDefinitions = seasons.slice(1);
 
       for (let i = 0; i < seasonalDefinitions.length; i += 1) {
         const season = seasonalDefinitions[i];
-        const seasonPriceItem = seasonalPriceItems[i];
-        if (!seasonPriceItem) continue;
-
         const window = getSeasonWindowForDate(season, referenceDate);
         if (!window) continue;
 
@@ -343,6 +342,17 @@ function resolvePricingForDate(
           referenceDate >= window.startDate &&
           referenceDate <= window.endDate
         ) {
+          // Prefer exact CRM linkage by season_id. If absent/inconsistent,
+          // fallback to positional mapping among seasonal items.
+          const matchedBySeasonId = seasonalPriceItems.find(
+            (item) =>
+              item?.season_id != null &&
+              season?.id != null &&
+              String(item.season_id) === String(season.id)
+          );
+          const seasonPriceItem = matchedBySeasonId || seasonalPriceItems[i];
+          if (!seasonPriceItem) continue;
+
           return {
             prices: normalizePrices(seasonPriceItem.values),
             // In season: warning should show end of active seasonal tariff.
