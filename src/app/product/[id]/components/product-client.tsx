@@ -46,6 +46,24 @@ type SeasonLike = {
   end_date?: string;
 };
 
+function InlineSkeleton({
+  width = 92,
+  height = 18,
+  className = '',
+}: {
+  width?: number | string;
+  height?: number | string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-block animate-pulse rounded-md bg-[#ececec] ${className}`.trim()}
+      style={{ width, height }}
+      aria-hidden="true"
+    />
+  );
+}
+
 function normalizePrices(values: number[] | undefined | null): number[] {
   const safe = Array.isArray(values)
     ? values.filter((v) => Number.isFinite(v) && v > 0)
@@ -60,10 +78,40 @@ function normalizePrices(values: number[] | undefined | null): number[] {
 
 function parseSearchDate(dateStr: string | null | undefined): Date | null {
   if (!dateStr) return null;
-  const [datePart, timePart] = String(dateStr).split(' ');
-  const [day, month, year] = datePart.split('-').map(Number);
+  const raw = String(dateStr).trim();
+  const dateMatch = raw.match(/\b(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})\b/);
+  if (!dateMatch) return null;
+
+  let day = 0;
+  let month = 0;
+  let year = 0;
+
+  const part1 = Number(dateMatch[1]);
+  const part2 = Number(dateMatch[2]);
+  const part3 = Number(dateMatch[3]);
+  const part1Len = dateMatch[1].length;
+  const part3Len = dateMatch[3].length;
+
+  // Support both DD-MM-YYYY and YYYY-MM-DD.
+  if (part1Len === 4) {
+    year = part1;
+    month = part2;
+    day = part3;
+  } else if (part3Len === 4) {
+    day = part1;
+    month = part2;
+    year = part3;
+  } else {
+    return null;
+  }
+
   if (!day || !month || !year) return null;
-  const [hours, minutes] = timePart ? timePart.split(':').map(Number) : [0, 0];
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const timeMatch = raw.match(/(\d{1,2}):(\d{2})/);
+  const hours = timeMatch ? Number(timeMatch[1]) : 0;
+  const minutes = timeMatch ? Number(timeMatch[2]) : 0;
+
   return new Date(year, month - 1, day, hours || 0, minutes || 0);
 }
 
@@ -312,7 +360,12 @@ function resolvePricingForDate(
   startDateStr: string | null
 ): { prices: number[]; tariffWarningDate: Date | null } {
   const pricesArray = car.prices || car.price;
-  const referenceDate = parseSearchDate(startDateStr) || new Date();
+  const parsedReferenceDate = parseSearchDate(startDateStr) || new Date();
+  const referenceDate = new Date(
+    parsedReferenceDate.getFullYear(),
+    parsedReferenceDate.getMonth(),
+    parsedReferenceDate.getDate()
+  );
   const seasons = Array.isArray((car as any)?.seasons)
     ? ((car as any).seasons as SeasonLike[])
     : [];
@@ -331,7 +384,41 @@ function resolvePricingForDate(
       const seasonalPriceItems = items.filter(
         (item) => item && item.season_id != null
       );
-      const seasonalDefinitions = seasons.slice(1);
+      const seasonalDefinitions = seasons;
+      const seasonalPriceBySeasonId = new Map<string, PriceItem>();
+      for (const item of seasonalPriceItems) {
+        if (item?.season_id == null) continue;
+        seasonalPriceBySeasonId.set(String(item.season_id), item);
+      }
+      const hasExplicitSeasonMapping = seasonalPriceBySeasonId.size > 0;
+      const canUsePositionalFallback =
+        !hasExplicitSeasonMapping && items.length > 0;
+
+      const getSeasonPriceByPosition = (
+        seasonIndex: number
+      ): PriceItem | undefined => {
+        if (seasonIndex < 0) return undefined;
+
+        // Case A: one price row per season row.
+        if (items.length === seasonalDefinitions.length) {
+          return items[seasonIndex];
+        }
+
+        // Case B: CRM keeps base period as seasons[0], and prices start from seasons[1].
+        if (items.length === Math.max(0, seasonalDefinitions.length - 1)) {
+          if (seasonIndex === 0) {
+            return items[0];
+          }
+          return items[seasonIndex - 1];
+        }
+
+        // Case C: only one tariff row in prices - use it for active season.
+        if (items.length === 1) {
+          return items[0];
+        }
+
+        return undefined;
+      };
 
       for (let i = 0; i < seasonalDefinitions.length; i += 1) {
         const season = seasonalDefinitions[i];
@@ -342,15 +429,16 @@ function resolvePricingForDate(
           referenceDate >= window.startDate &&
           referenceDate <= window.endDate
         ) {
-          // Prefer exact CRM linkage by season_id. If absent/inconsistent,
-          // fallback to positional mapping among seasonal items.
-          const matchedBySeasonId = seasonalPriceItems.find(
-            (item) =>
-              item?.season_id != null &&
-              season?.id != null &&
-              String(item.season_id) === String(season.id)
-          );
-          const seasonPriceItem = matchedBySeasonId || seasonalPriceItems[i];
+          const seasonId = getSeasonId(season);
+          const matchedBySeasonId =
+            seasonId != null
+              ? seasonalPriceBySeasonId.get(String(seasonId))
+              : undefined;
+          const seasonPriceItem =
+            matchedBySeasonId ||
+            (canUsePositionalFallback
+              ? getSeasonPriceByPosition(i)
+              : undefined);
           if (!seasonPriceItem) continue;
 
           return {
@@ -365,6 +453,11 @@ function resolvePricingForDate(
       // upcoming seasonal start (e.g. "до 01 июня ... включительно").
       let nearestSeasonStart: Date | null = null;
       for (const season of seasonalDefinitions) {
+        const seasonId = getSeasonId(season);
+        const isSeasonPriced =
+          seasonId != null && seasonalPriceBySeasonId.has(String(seasonId));
+        if (!isSeasonPriced && !canUsePositionalFallback) continue;
+
         const window = getSeasonWindowForDate(season, referenceDate);
         if (!window) continue;
         if (window.startDate > referenceDate) {
@@ -440,7 +533,12 @@ function parsePricePeriods(raw: unknown): PricePeriodRange[] {
       if (!m) return null;
       const min = Number(m[1]);
       const max = Number(m[2]);
-      if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max < min) {
+      if (
+        !Number.isFinite(min) ||
+        !Number.isFinite(max) ||
+        min <= 0 ||
+        max < min
+      ) {
         return null;
       }
       return { min, max, label: `${min}-${max} дней` };
@@ -549,6 +647,9 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     string | null
   >(null);
   const [carDetails, setCarDetails] = useState<Car | null>(null);
+  const [isCarDetailsLoading, setIsCarDetailsLoading] = useState(
+    Boolean(car?.id)
+  );
   const [servicePricing, setServicePricing] = useState<ServicePricing>({
     calmPricePerDay: 2000,
     cascoPricePerDay: 1000,
@@ -565,8 +666,6 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     () => (carDetails ? { ...car, ...carDetails } : car),
     [car, carDetails]
   );
-
-  console.log(resolvedCar);
 
   // Parse eligibility years with sanity bounds to ignore unrelated fields (e.g. mileage limits).
   const parseMinYears = (
@@ -669,7 +768,11 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     let cancelled = false;
 
     const fetchCarDetails: () => Promise<void> = async () => {
-      if (!car?.id) return;
+      if (!car?.id) {
+        if (!cancelled) setIsCarDetailsLoading(false);
+        return;
+      }
+      if (!cancelled) setIsCarDetailsLoading(true);
       try {
         const response = await axios.get<{ car?: Car }>(
           `/api/cars/${car.id}/data`
@@ -681,6 +784,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         }
       } catch (error) {
         console.error('Failed to fetch car_data_with_bookings:', error);
+      } finally {
+        if (!cancelled) setIsCarDetailsLoading(false);
       }
     };
 
@@ -689,6 +794,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       cancelled = true;
     };
   }, [car?.id]);
+  const showCalculatedLoader = Boolean(car?.id) && isCarDetailsLoading;
 
   // Group cars by model (same car, different colors and years)
   const carGroup = useMemo(() => {
@@ -888,14 +994,13 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   }, [carGroup]);
 
   const pricingForSelectedDate = useMemo(() => {
-    const sourceCar = carDetails || resolvedCar;
-    return resolvePricingForDate(sourceCar, startDate);
-  }, [carDetails, resolvedCar, startDate]);
+    return resolvePricingForDate(resolvedCar, startDate);
+  }, [resolvedCar, startDate]);
   const prices = pricingForSelectedDate.prices;
   const pricePeriods = useMemo(() => {
-    const sourceCar = (carDetails || resolvedCar) as any;
+    const sourceCar = resolvedCar as any;
     return parsePricePeriods(sourceCar?.price_periods);
-  }, [carDetails, resolvedCar]);
+  }, [resolvedCar]);
 
   const priceRanges = useMemo(
     () =>
@@ -919,7 +1024,9 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   // Calculate daily price based on CRM price_periods and selected tariff prices.
   const getPriceForDays = (days: number): number => {
     if (!days || days < 1) return prices[0] ?? 0;
-    const idx = pricePeriods.findIndex((range) => days >= range.min && days <= range.max);
+    const idx = pricePeriods.findIndex(
+      (range) => days >= range.min && days <= range.max
+    );
     if (idx >= 0) return prices[idx] ?? prices[prices.length - 1] ?? 0;
     return prices[prices.length - 1] ?? 0;
   };
@@ -1582,11 +1689,34 @@ ${pricingInfo}
               {priceRanges.map((range, index) => (
                 <li key={index}>
                   <span>{range.label}</span>
-                  <b>{range.price.toLocaleString('ru-RU')} ₽</b>
+                  <b>
+                    {showCalculatedLoader ? (
+                      <InlineSkeleton
+                        width={96}
+                        height={20}
+                        className="align-middle"
+                      />
+                    ) : (
+                      `${range.price.toLocaleString('ru-RU')} ₽`
+                    )}
+                  </b>
                 </li>
               ))}
             </ul>
-            {tariffValidUntilText && (
+            {showCalculatedLoader && (
+              <div className="info-texts" aria-busy="true">
+                <img src="/img/info-img.svg" alt="" />
+                <p>
+                  <span className="block">
+                    <InlineSkeleton width={210} height={12} />
+                  </span>
+                  <span className="mt-1 block">
+                    <InlineSkeleton width={170} height={12} />
+                  </span>
+                </p>
+              </div>
+            )}
+            {!showCalculatedLoader && tariffValidUntilText && (
               <div className="info-texts">
                 <img src="/img/info-img.svg" alt="" />
                 <p>
@@ -1733,13 +1863,19 @@ ${pricingInfo}
                         content={
                           <div className="tooltip2">
                             <span>
-                              Расчёт: {rentalDays} суток ×{' '}
-                              {getPriceForDays(rentalDays).toLocaleString(
-                                'ru-RU'
-                              )}{' '}
-                              ₽/сутки
-                              <br />
-                              Тариф: {getTariffLabelForDays(rentalDays)}
+                              {showCalculatedLoader ? (
+                                <InlineSkeleton width={150} height={14} />
+                              ) : (
+                                <>
+                                  Расчёт: {rentalDays} суток ×{' '}
+                                  {getPriceForDays(rentalDays).toLocaleString(
+                                    'ru-RU'
+                                  )}{' '}
+                                  ₽/сутки
+                                  <br />
+                                  Тариф: {getTariffLabelForDays(rentalDays)}
+                                </>
+                              )}
                             </span>
                           </div>
                         }
@@ -1767,7 +1903,7 @@ ${pricingInfo}
                       justifyContent: 'flex-end',
                     }}
                   >
-                    {oldRentalPrice > rentalPrice && (
+                    {!showCalculatedLoader && oldRentalPrice > rentalPrice && (
                       <>
                         <span
                           style={{
@@ -1790,7 +1926,17 @@ ${pricingInfo}
                         </span>
                       </>
                     )}
-                    <b>{rentalPrice.toLocaleString('ru-RU')} ₽</b>
+                    <b>
+                      {showCalculatedLoader ? (
+                        <InlineSkeleton
+                          width={104}
+                          height={22}
+                          className="align-middle"
+                        />
+                      ) : (
+                        `${rentalPrice.toLocaleString('ru-RU')} ₽`
+                      )}
+                    </b>
                   </div>
                 </div>
 
@@ -1850,7 +1996,7 @@ ${pricingInfo}
                 {extraTimeFee > 0 && (
                   <div className="sum-row">
                     <span>
-                      Нерабоч. ({extraTimeFeeInfo.eventsCount} ×{' '}
+                      Нерабоч. время ({extraTimeFeeInfo.eventsCount} ×{' '}
                       {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)
                     </span>
                     <b>+ {extraTimeFee.toLocaleString('ru-RU')} ₽</b>
@@ -1867,19 +2013,37 @@ ${pricingInfo}
 
                 <div className="sum-row">
                   <span>Депозит</span>
-                  <b>{depositDisplay}</b>
+                  <b>
+                    {showCalculatedLoader ? (
+                      <InlineSkeleton
+                        width={90}
+                        height={20}
+                        className="align-middle"
+                      />
+                    ) : (
+                      depositDisplay
+                    )}
+                  </b>
                 </div>
                 <p className="totla-text">
                   Итоговая стоимость аренды автомобиля:
                 </p>
                 <div className="total">
-                  {showOldTotalWithDiscount && (
+                  {!showCalculatedLoader && showOldTotalWithDiscount && (
                     <div className="old">
                       {oldTotalWithDeposit.toLocaleString('ru-RU')} ₽
                     </div>
                   )}
                   <div className="new" id="totalPrice">
-                    {finalTotalWithDeposit.toLocaleString('ru-RU')} ₽
+                    {showCalculatedLoader ? (
+                      <InlineSkeleton
+                        width={140}
+                        height={30}
+                        className="align-middle"
+                      />
+                    ) : (
+                      `${finalTotalWithDeposit.toLocaleString('ru-RU')} ₽`
+                    )}
                   </div>
                 </div>
 
@@ -1927,13 +2091,25 @@ ${pricingInfo}
                 <button
                   className="red-btn"
                   onClick={handleBooking}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || showCalculatedLoader}
                   style={{
-                    opacity: isSubmitting ? 0.6 : 1,
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting || showCalculatedLoader ? 0.6 : 1,
+                    cursor:
+                      isSubmitting || showCalculatedLoader
+                        ? 'not-allowed'
+                        : 'pointer',
                   }}
                 >
-                  {isSubmitting ? 'Отправка...' : 'Забронировать автомобиль'}
+                  {isSubmitting ? (
+                    'Отправка...'
+                  ) : showCalculatedLoader ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      Загружаем тарифы...
+                    </span>
+                  ) : (
+                    'Забронировать автомобиль'
+                  )}
                 </button>
 
                 <p className="note">
@@ -1949,19 +2125,43 @@ ${pricingInfo}
                 <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
                   <span>Депозит</span>
                   <b className="text-[18px] sm:text-[21px] text-right">
-                    {depositDisplay}
+                    {showCalculatedLoader ? (
+                      <InlineSkeleton
+                        width={96}
+                        height={20}
+                        className="align-middle"
+                      />
+                    ) : (
+                      depositDisplay
+                    )}
                   </b>
                 </div>
                 <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
                   <span>Включенный пробег</span>
                   <b className="text-[18px] sm:text-[21px] text-right">
-                    {mileageLimitDisplay}
+                    {showCalculatedLoader ? (
+                      <InlineSkeleton
+                        width={122}
+                        height={20}
+                        className="align-middle"
+                      />
+                    ) : (
+                      mileageLimitDisplay
+                    )}
                   </b>
                 </div>
                 <div className="w-full sm:w-auto flex items-center justify-between gap-4 sm:gap-10 text-[15px] sm:text-[18px] text-[#373737]">
                   <span>Цена 1км перепробега</span>
                   <b className="text-[18px] sm:text-[21px] text-right">
-                    {extraMileagePricePerKm.toLocaleString('ru-RU')} ₽ / км
+                    {showCalculatedLoader ? (
+                      <InlineSkeleton
+                        width={116}
+                        height={20}
+                        className="align-middle"
+                      />
+                    ) : (
+                      `${extraMileagePricePerKm.toLocaleString('ru-RU')} ₽ / км`
+                    )}
                   </b>
                 </div>
               </div>
