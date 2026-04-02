@@ -366,10 +366,34 @@ function getSeasonWindowForDate(
   return { startDate, endDate, seasonId: getSeasonId(season) };
 }
 
+function getNextSeasonStartDate(
+  startDayMonth: string | null | undefined,
+  referenceDate: Date
+): Date | null {
+  const startPart = parseSeasonDayMonth(String(startDayMonth || ''));
+  if (!startPart) return null;
+
+  const ref = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  );
+
+  let candidate = new Date(ref.getFullYear(), startPart.month - 1, startPart.day);
+  if (candidate <= ref) {
+    candidate = new Date(ref.getFullYear() + 1, startPart.month - 1, startPart.day);
+  }
+  return candidate;
+}
+
 function resolvePricingFromAdminTariffs(
   tariffs: GroupTariffPricing[],
   startDateStr: string | null
-): { prices: number[]; tariffWarningDate: Date | null } {
+): {
+  prices: number[];
+  tariffWarningDate: Date | null;
+  shouldShowTariffWarning: boolean;
+} {
   const parsedReferenceDate = parseSearchDate(startDateStr) || new Date();
   const referenceDate = new Date(
     parsedReferenceDate.getFullYear(),
@@ -386,6 +410,7 @@ function resolvePricingFromAdminTariffs(
   const seasonalTariffs = activeTariffs.filter(
     (tariff) => !tariff.isDefault && tariff.startDayMonth && tariff.endDayMonth
   );
+  const hasSeasonalTariffs = seasonalTariffs.length > 0;
 
   for (const tariff of seasonalTariffs) {
     const window = getSeasonWindowForDate(
@@ -401,31 +426,24 @@ function resolvePricingFromAdminTariffs(
       return {
         prices: normalizePrices(tariff.prices),
         tariffWarningDate: window.endDate,
+        shouldShowTariffWarning: true,
       };
     }
   }
 
   let nearestSeasonStart: Date | null = null;
   for (const tariff of seasonalTariffs) {
-    const window = getSeasonWindowForDate(
-      {
-        id: tariff.id,
-        start_date: tariff.startDayMonth || '',
-        end_date: tariff.endDayMonth || '',
-      },
-      referenceDate
-    );
-    if (!window) continue;
-    if (window.startDate > referenceDate) {
-      if (!nearestSeasonStart || window.startDate < nearestSeasonStart) {
-        nearestSeasonStart = window.startDate;
-      }
+    const nextStart = getNextSeasonStartDate(tariff.startDayMonth, referenceDate);
+    if (!nextStart) continue;
+    if (!nearestSeasonStart || nextStart < nearestSeasonStart) {
+      nearestSeasonStart = nextStart;
     }
   }
 
   return {
     prices: normalizePrices(defaultTariff?.prices),
     tariffWarningDate: nearestSeasonStart,
+    shouldShowTariffWarning: hasSeasonalTariffs,
   };
 }
 
@@ -1007,6 +1025,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       year: 'numeric',
     }).format(warningDate);
   }, [pricingForSelectedDate.tariffWarningDate]);
+  const shouldShowTariffWarning = pricingForSelectedDate.shouldShowTariffWarning;
 
   // Calculate daily price based on CRM price_periods and selected tariff prices.
   const getPriceForDays = (days: number): number => {
@@ -1703,7 +1722,9 @@ ${pricingInfo}
                 </p>
               </div>
             )}
-            {!showCalculatedLoader && tariffValidUntilText && (
+            {!showCalculatedLoader &&
+              shouldShowTariffWarning &&
+              tariffValidUntilText && (
               <div className="info-texts">
                 <img src="/img/info-img.svg" alt="" />
                 <p>
