@@ -175,8 +175,12 @@ export default function TelegramChatsList() {
       <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Список чатов</h2>
-            <p className="text-gray-600 text-xs sm:text-sm mt-1">Управление получателями уведомлений Telegram</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Список чатов
+            </h2>
+            <p className="text-gray-600 text-xs sm:text-sm mt-1">
+              Управление получателями уведомлений Telegram
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <button
@@ -268,8 +272,12 @@ export default function TelegramChatsList() {
         {chats.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
             <i className="fab fa-telegram text-5xl sm:text-6xl text-gray-300 mb-4"></i>
-            <p className="text-gray-500 text-base sm:text-lg">Чаты не найдены</p>
-            <p className="text-gray-400 text-xs sm:text-sm mt-2">Добавьте Chat ID для получения уведомлений</p>
+            <p className="text-gray-500 text-base sm:text-lg">
+              Чаты не найдены
+            </p>
+            <p className="text-gray-400 text-xs sm:text-sm mt-2">
+              Добавьте Chat ID для получения уведомлений
+            </p>
           </div>
         ) : (
           <table className="w-full min-w-[640px]">

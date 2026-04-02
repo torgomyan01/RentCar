@@ -108,3 +108,38 @@ model HomeCarGroupSelection {
   @@index([isActive, order])
   @@map("home_car_group_selection")
 }
+
+// Admin-managed rental tariffs per car group
+model CarGroupTariff {
+  id            String                @id @default(uuid())
+  groupKey      String
+  name          String
+  startDayMonth String?               // DD.MM (null for default/base tariff)
+  endDayMonth   String?               // DD.MM (null for default/base tariff)
+  isDefault     Boolean               @default(false)
+  order         Int                   @default(0)
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  prices        CarGroupTariffPrice[]
+
+  @@unique([groupKey, name])
+  @@index([groupKey, isActive, order])
+  @@map("car_group_tariffs")
+}
+
+// 5 fixed day-bucket prices for each tariff:
+// 0 -> 1-2, 1 -> 3-7, 2 -> 8-15, 3 -> 16-31, 4 -> 32+
+model CarGroupTariffPrice {
+  id         String         @id @default(uuid())
+  tariffId   String
+  bucketIndex Int
+  price      Int
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  tariff     CarGroupTariff @relation(fields: [tariffId], references: [id], onDelete: Cascade)
+
+  @@unique([tariffId, bucketIndex])
+  @@index([bucketIndex])
+  @@map("car_group_tariff_prices")
+}

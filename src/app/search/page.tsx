@@ -12,61 +12,11 @@ import { useAppSelector } from '@/store/store';
 import { useSearchParams } from 'next/navigation';
 import { calculateExtraTimeFee } from '@/lib/business-hours-fee';
 import { parseMileageInput } from '@/lib/mileage-pricing';
-
-function extractCarPrices(car: Car): number[] {
-  const pricesArray = car.prices || car.price;
-
-  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
-    if (
-      typeof pricesArray[0] === 'object' &&
-      pricesArray[0] !== null &&
-      'values' in pricesArray[0]
-    ) {
-      const firstItem = pricesArray[0] as { values: number[] };
-      if (Array.isArray(firstItem.values) && firstItem.values.length > 0) {
-        const vals = [...firstItem.values];
-        while (vals.length < 5) vals.push(vals[vals.length - 1] || 0);
-        return vals.slice(0, 5);
-      }
-    }
-    if (typeof pricesArray[0] === 'number') {
-      const nums = pricesArray as unknown as number[];
-      const vals = [...nums];
-      while (vals.length < 5) vals.push(vals[vals.length - 1] || 0);
-      return vals.slice(0, 5);
-    }
-  }
-
-  if (
-    typeof car.price === 'number' &&
-    Number.isFinite(car.price) &&
-    car.price > 0
-  ) {
-    return [car.price, car.price, car.price, car.price, car.price];
-  }
-
-  if (typeof car.price_from === 'string') {
-    const parsed = Number(car.price_from.replace(/[^\d]/g, ''));
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return [parsed, parsed, parsed, parsed, parsed];
-    }
-  }
-
-  return [Infinity, Infinity, Infinity, Infinity, Infinity];
-}
-
-function getPriceForDays(prices: number[], days: number): number {
-  if (days <= 2) return prices[0] || 0;
-  if (days <= 7) return prices[1] || 0;
-  if (days <= 15) return prices[2] || 0;
-  if (days <= 31) return prices[3] || 0;
-  return prices[4] || 0;
-}
-
-function getCarRentalPrice(car: Car, days: number): number {
-  const prices = extractCarPrices(car);
-  return getPriceForDays(prices, days);
-}
+import {
+  getPriceForDaysByBuckets,
+  resolveTariffPricesForDate,
+  type GroupTariffPricing,
+} from '@/lib/group-pricing-client';
 
 function normalizeCarType(value: string): string {
   const normalized = value.trim().toLowerCase();
@@ -132,6 +82,9 @@ function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTabs, setActiveTabs] = useState<string[]>(['all']);
+  const [groupPricingMap, setGroupPricingMap] = useState<
+    Record<string, GroupTariffPricing[]>
+  >({});
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastAutoScrollKeyRef = useRef('');
   const startDate = searchParams.get('start_date');
@@ -199,25 +152,6 @@ function SearchPage() {
 
     fetchCars();
   }, [startDate, endDate, allCars]);
-
-  useEffect(() => {
-    if (loading || !startDate || !endDate) return;
-
-    const searchKey = `${startDate}|${endDate}|${mileageParam}`;
-    if (lastAutoScrollKeyRef.current === searchKey) return;
-
-    const anchor = resultsAnchorRef.current;
-    if (!anchor) return;
-
-    lastAutoScrollKeyRef.current = searchKey;
-    requestAnimationFrame(() => {
-      const top = anchor.getBoundingClientRect().top + window.scrollY - 110;
-      window.scrollTo({
-        top: Math.max(top, 0),
-        behavior: 'smooth',
-      });
-    });
-  }, [loading, startDate, endDate, mileageParam]);
 
   // Calculate number of days between start_date and end_date
   const calculateDays = (
@@ -354,18 +288,100 @@ function SearchPage() {
     );
   }, [cars, activeTabs]);
 
+  const filteredGroupKeys = useMemo(() => {
+    const keys = new Set<string>();
+    filteredCars.forEach((car) => {
+      keys.add(getCarGroupKey(car));
+    });
+    return Array.from(keys).filter(Boolean);
+  }, [filteredCars]);
+
+  const isPricingRequired = Boolean(startDate && endDate && rentalDays > 0);
+  const missingPricingKeys = useMemo(
+    () =>
+      isPricingRequired
+        ? filteredGroupKeys.filter((key) => groupPricingMap[key] === undefined)
+        : [],
+    [isPricingRequired, filteredGroupKeys, groupPricingMap]
+  );
+  const pricingReady = !isPricingRequired || missingPricingKeys.length === 0;
+
+  useEffect(() => {
+    if (!isPricingRequired || missingPricingKeys.length === 0) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const entries = await Promise.all(
+        missingPricingKeys.map(async (groupKey) => {
+          try {
+            const encodedGroupKey = encodeURIComponent(groupKey);
+            const response = await fetch(`/api/cars/pricing/${encodedGroupKey}`);
+            const data = await response.json();
+            const tariffs = Array.isArray(data?.tariffs)
+              ? (data.tariffs as GroupTariffPricing[])
+              : [];
+            return [groupKey, tariffs] as const;
+          } catch (error) {
+            console.error('Failed to fetch group pricing for sort:', error);
+            return [groupKey, [] as GroupTariffPricing[]] as const;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      setGroupPricingMap((prev) => {
+        const next = { ...prev };
+        entries.forEach(([groupKey, tariffs]) => {
+          next[groupKey] = tariffs;
+        });
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPricingRequired, missingPricingKeys]);
+
+  const getGroupSortAndDisplayPrice = (
+    mainCar: Car,
+    groupKey: string
+  ): number => {
+    const fallbackMin = getCarMinDisplayedPrice(mainCar);
+
+    if (!startDate || rentalDays <= 0) {
+      return fallbackMin;
+    }
+
+    const tariffs = groupPricingMap[groupKey];
+    if (!Array.isArray(tariffs) || tariffs.length === 0) {
+      return fallbackMin;
+    }
+
+    const pricesByDate = resolveTariffPricesForDate(tariffs, startDate);
+    const selectedPrice = getPriceForDaysByBuckets(pricesByDate, rentalDays);
+
+    if (Number.isFinite(selectedPrice) && selectedPrice > 0) {
+      return selectedPrice;
+    }
+
+    return fallbackMin;
+  };
+
   const groupedCars = useMemo(() => {
     const grouped = groupCarsByModel(filteredCars);
     return grouped.sort((a, b) => {
-      // `ProductCard` shows "Стоимость аренды" for `car={mainCar}`, где
-      // `mainCar` берётся как `carGroup[0]`. Поэтому сортируем группы по цене
-      // именно этого первого авто, чтобы порядок на странице совпадал с тем,
-      // что видит пользователь.
-      const aPrice = getCarMinDisplayedPrice(a[0]);
-      const bPrice = getCarMinDisplayedPrice(b[0]);
-      return aPrice - bPrice; // от дешёвых к дорогим
+      const aMain = a[0];
+      const bMain = b[0];
+      const aGroupKey = getCarGroupKey(aMain);
+      const bGroupKey = getCarGroupKey(bMain);
+      const aPrice = getGroupSortAndDisplayPrice(aMain, aGroupKey);
+      const bPrice = getGroupSortAndDisplayPrice(bMain, bGroupKey);
+      return aPrice - bPrice;
     });
-  }, [filteredCars]);
+  }, [filteredCars, startDate, rentalDays, groupPricingMap]);
   const allCarsByGroup = useMemo(() => {
     const grouped = new Map<string, Car[]>();
     allCars.forEach((car) => {
@@ -387,6 +403,25 @@ function SearchPage() {
     const dailyMileageLimit = 200; // km per day
     return rentalDays * dailyMileageLimit;
   }, [rentalDays]);
+
+  useEffect(() => {
+    if (loading || !pricingReady || !startDate || !endDate) return;
+
+    const searchKey = `${startDate}|${endDate}|${mileageParam}`;
+    if (lastAutoScrollKeyRef.current === searchKey) return;
+
+    const anchor = resultsAnchorRef.current;
+    if (!anchor) return;
+
+    lastAutoScrollKeyRef.current = searchKey;
+    requestAnimationFrame(() => {
+      const top = anchor.getBoundingClientRect().top + window.scrollY - 110;
+      window.scrollTo({
+        top: Math.max(top, 0),
+        behavior: 'smooth',
+      });
+    });
+  }, [loading, pricingReady, startDate, endDate, mileageParam]);
 
   return (
     <MainTemplate headerAnimation={false} headerConent={<SearchHeader />}>
@@ -414,14 +449,23 @@ function SearchPage() {
                 <p>{error}</p>
               </div>
             )}
+            {!loading && !error && !pricingReady && (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <p>Загружаем тарифы...</p>
+              </div>
+            )}
             {!loading && !error && (
               <>
-                {groupedCars.length > 0 ? (
+                {pricingReady && groupedCars.length > 0 ? (
                   groupedCars.map((carGroup, index) => {
                     const mainCar = carGroup[0];
                     const groupKey = getCarGroupKey(mainCar);
                     const fullCarGroup =
                       allCarsByGroup.get(groupKey) || carGroup;
+                    const resolvedDailyPrice = getGroupSortAndDisplayPrice(
+                      mainCar,
+                      groupKey
+                    );
 
                     return (
                       <div key={mainCar.id || mainCar.car_name || index}>
@@ -431,6 +475,7 @@ function SearchPage() {
                           index={index}
                           yearRange={getYearRange(fullCarGroup)}
                           uniqueColors={getUniqueColors(fullCarGroup)}
+                          resolvedDailyPrice={resolvedDailyPrice}
                           otherInfo={
                             <RentalInfo
                               car={mainCar}
@@ -446,11 +491,11 @@ function SearchPage() {
                       </div>
                     );
                   })
-                ) : (
+                ) : pricingReady ? (
                   <div style={{ textAlign: 'center', padding: '40px' }}>
                     <p>Автомобили не найдены</p>
                   </div>
-                )}
+                ) : null}
               </>
             )}
           </div>

@@ -210,6 +210,10 @@
   content: '\f015';
 }
 
+.fa-book:before {
+  content: '\f02d';
+}
+
 .fa-grip-vertical:before {
   content: '\f047';
 }

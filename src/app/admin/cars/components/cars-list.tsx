@@ -27,6 +27,19 @@ interface ServicePricing {
   fullCascoPricePerDay: number;
 }
 
+interface GroupTariff {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  isActive: boolean;
+  order: number;
+  startDayMonth: string | null;
+  endDayMonth: string | null;
+  prices: number[];
+}
+
+const BUCKET_LABELS = ['1-2 дня', '3-7 дней', '8-15 дней', '16-31 дней', '32+ дня'];
+
 export default function CarsList({ initialCars }: CarsListProps) {
   const [cars] = useState<Car[]>(initialCars);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +68,10 @@ export default function CarsList({ initialCars }: CarsListProps) {
     fullCascoPricePerDay: 3000,
   });
   const [savingGroupPricing, setSavingGroupPricing] = useState(false);
+  const [groupTariffs, setGroupTariffs] = useState<GroupTariff[]>([]);
+  const [loadingGroupTariffs, setLoadingGroupTariffs] = useState(false);
+  const [savingGroupTariffs, setSavingGroupTariffs] = useState(false);
+  const [groupTariffError, setGroupTariffError] = useState('');
   const imageMedia = useMemo(
     () => groupMedia.filter((item) => item.type === 'image'),
     [groupMedia]
@@ -262,6 +279,35 @@ export default function CarsList({ initialCars }: CarsListProps) {
       });
   }, [selectedGroup, isModalOpen, activeTab]);
 
+  // Fetch admin-managed group tariffs for selected group
+  useEffect(() => {
+    if (!selectedGroup || !isModalOpen || activeTab !== 'cars') return;
+
+    let cancelled = false;
+    setLoadingGroupTariffs(true);
+    setGroupTariffError('');
+
+    const encodedGroupKey = encodeURIComponent(selectedGroup.key);
+    fetch(`/api/admin/car-group-pricing/${encodedGroupKey}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        setGroupTariffs(Array.isArray(data?.tariffs) ? data.tariffs : []);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Error fetching group tariffs:', error);
+        setGroupTariffError('Ошибка загрузки тарифов');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingGroupTariffs(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGroup, isModalOpen, activeTab]);
+
   const fetchGroupMedia = async (groupKey: string) => {
     setLoadingMedia(true);
     try {
@@ -417,6 +463,149 @@ export default function CarsList({ initialCars }: CarsListProps) {
       alert('Ошибка сохранения цен услуг');
     } finally {
       setSavingGroupPricing(false);
+    }
+  };
+
+  const normalizeDayMonthInput = (value: string): string => {
+    const m = value.replace(/[^\d.]/g, '').match(/^(\d{1,2})\.?(\d{1,2})?$/);
+    if (!m) return '';
+    const day = (m[1] || '').slice(0, 2);
+    const month = (m[2] || '').slice(0, 2);
+    return month ? `${day}.${month}` : day;
+  };
+
+  const handleTariffFieldChange = (
+    index: number,
+    field: keyof GroupTariff,
+    value: string | boolean
+  ) => {
+    setGroupTariffs((prev) => {
+      if (field === 'isDefault') {
+        return prev.map((tariff, i) => {
+          const isDefault = i === index ? Boolean(value) : false;
+          return {
+            ...tariff,
+            isDefault,
+            startDayMonth: isDefault ? null : tariff.startDayMonth,
+            endDayMonth: isDefault ? null : tariff.endDayMonth,
+          };
+        });
+      }
+
+      return prev.map((tariff, i) => {
+        if (i !== index) return tariff;
+        if (field === 'startDayMonth' || field === 'endDayMonth') {
+          return {
+            ...tariff,
+            [field]:
+              typeof value === 'string'
+                ? normalizeDayMonthInput(value)
+                : String(value),
+          };
+        }
+        if (field === 'isActive') {
+          return { ...tariff, isActive: Boolean(value) };
+        }
+        if (field === 'name') {
+          return { ...tariff, name: String(value) };
+        }
+        return tariff;
+      });
+    });
+  };
+
+  const handleTariffPriceChange = (
+    tariffIndex: number,
+    bucketIndex: number,
+    value: string
+  ) => {
+    const parsed = Number(value.replace(/[^\d]/g, ''));
+    setGroupTariffs((prev) =>
+      prev.map((tariff, i) => {
+        if (i !== tariffIndex) return tariff;
+        const prices = [...tariff.prices];
+        prices[bucketIndex] = Number.isFinite(parsed) ? parsed : 0;
+        while (prices.length < 5) prices.push(prices[prices.length - 1] || 0);
+        return { ...tariff, prices: prices.slice(0, 5) };
+      })
+    );
+  };
+
+  const handleAddSeasonTariff = () => {
+    setGroupTariffs((prev) => [
+      ...prev,
+      {
+        id: `new-${Date.now()}`,
+        name: `Сезон ${prev.filter((t) => !t.isDefault).length + 1}`,
+        isDefault: false,
+        isActive: true,
+        order: prev.length,
+        startDayMonth: '',
+        endDayMonth: '',
+        prices: [0, 0, 0, 0, 0],
+      },
+    ]);
+  };
+
+  const handleRemoveTariff = (index: number) => {
+    setGroupTariffs((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveTariff = (index: number, direction: -1 | 1) => {
+    setGroupTariffs((prev) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+      const next = [...prev];
+      const temp = next[index];
+      next[index] = next[nextIndex];
+      next[nextIndex] = temp;
+      return next.map((item, i) => ({ ...item, order: i }));
+    });
+  };
+
+  const handleSaveGroupTariffs = async () => {
+    if (!selectedGroup?.key) return;
+    setGroupTariffError('');
+
+    const activeDefaults = groupTariffs.filter((t) => t.isActive && t.isDefault);
+    if (activeDefaults.length !== 1) {
+      setGroupTariffError('Должен быть ровно один активный базовый тариф');
+      return;
+    }
+
+    setSavingGroupTariffs(true);
+    try {
+      const encodedGroupKey = encodeURIComponent(selectedGroup.key);
+      const payload = groupTariffs.map((tariff, idx) => ({
+        id: tariff.id,
+        name: tariff.name,
+        isDefault: tariff.isDefault,
+        isActive: tariff.isActive,
+        order: idx,
+        startDayMonth: tariff.isDefault ? null : tariff.startDayMonth || null,
+        endDayMonth: tariff.isDefault ? null : tariff.endDayMonth || null,
+        prices: tariff.prices,
+      }));
+
+      const response = await fetch(
+        `/api/admin/car-group-pricing/${encodedGroupKey}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tariffs: payload }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        setGroupTariffError(data?.error || 'Ошибка сохранения тарифов');
+        return;
+      }
+      setGroupTariffs(Array.isArray(data?.tariffs) ? data.tariffs : []);
+    } catch (error) {
+      console.error('Error saving group tariffs:', error);
+      setGroupTariffError('Ошибка сохранения тарифов');
+    } finally {
+      setSavingGroupTariffs(false);
     }
   };
 
@@ -740,6 +929,205 @@ export default function CarsList({ initialCars }: CarsListProps) {
               {/* Cars Tab */}
               {activeTab === 'cars' && (
                 <div>
+                  <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-indigo-900">
+                        Тарифы аренды группы (базовый + сезонные)
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAddSeasonTariff}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-indigo-700 border border-indigo-300 rounded-lg bg-white hover:bg-indigo-100"
+                        >
+                          <i className="fas fa-plus"></i>
+                          Добавить сезон
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveGroupTariffs}
+                          disabled={savingGroupTariffs || loadingGroupTariffs}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-60"
+                        >
+                          {savingGroupTariffs ? 'Сохранение...' : 'Сохранить тарифы'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {groupTariffError && (
+                      <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        {groupTariffError}
+                      </div>
+                    )}
+
+                    {loadingGroupTariffs ? (
+                      <div className="py-6 text-center">
+                        <div className="inline-block animate-spin rounded-full h-7 w-7 border-t-2 border-b-2 border-indigo-600"></div>
+                        <p className="text-xs text-gray-600 mt-2">Загрузка тарифов...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {groupTariffs.map((tariff, tariffIndex) => (
+                          <div
+                            key={tariff.id || `${tariffIndex}`}
+                            className="rounded-lg border border-indigo-200 bg-white p-3"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                              <div className="md:col-span-3">
+                                <label className="block text-[11px] text-gray-700 mb-1">
+                                  Название
+                                </label>
+                                <input
+                                  type="text"
+                                  value={tariff.name}
+                                  onChange={(e) =>
+                                    handleTariffFieldChange(
+                                      tariffIndex,
+                                      'name',
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-md"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2">
+                                <label className="block text-[11px] text-gray-700 mb-1">
+                                  С
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="DD.MM"
+                                  value={tariff.startDayMonth || ''}
+                                  disabled={tariff.isDefault}
+                                  onChange={(e) =>
+                                    handleTariffFieldChange(
+                                      tariffIndex,
+                                      'startDayMonth',
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-md disabled:bg-gray-100"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-[11px] text-gray-700 mb-1">
+                                  По
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="DD.MM"
+                                  value={tariff.endDayMonth || ''}
+                                  disabled={tariff.isDefault}
+                                  onChange={(e) =>
+                                    handleTariffFieldChange(
+                                      tariffIndex,
+                                      'endDayMonth',
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-md disabled:bg-gray-100"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2">
+                                <label className="block text-[11px] text-gray-700 mb-1">
+                                  Базовый
+                                </label>
+                                <input
+                                  type="checkbox"
+                                  checked={tariff.isDefault}
+                                  onChange={(e) =>
+                                    handleTariffFieldChange(
+                                      tariffIndex,
+                                      'isDefault',
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="h-4 w-4"
+                                />
+                              </div>
+                              <div className="md:col-span-1">
+                                <label className="block text-[11px] text-gray-700 mb-1">
+                                  Активен
+                                </label>
+                                <input
+                                  type="checkbox"
+                                  checked={tariff.isActive}
+                                  onChange={(e) =>
+                                    handleTariffFieldChange(
+                                      tariffIndex,
+                                      'isActive',
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="h-4 w-4"
+                                />
+                              </div>
+
+                              <div className="md:col-span-2 flex items-center gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveTariff(tariffIndex, -1)}
+                                  className="px-2 py-1 text-xs border rounded-md hover:bg-gray-50"
+                                  title="Вверх"
+                                >
+                                  <i className="fas fa-arrow-up"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveTariff(tariffIndex, 1)}
+                                  className="px-2 py-1 text-xs border rounded-md hover:bg-gray-50"
+                                  title="Вниз"
+                                >
+                                  <i className="fas fa-arrow-down"></i>
+                                </button>
+                                {!tariff.isDefault && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTariff(tariffIndex)}
+                                    className="px-2 py-1 text-xs border border-red-200 text-red-600 rounded-md hover:bg-red-50"
+                                    title="Удалить"
+                                  >
+                                    <i className="fas fa-trash"></i>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+                              {BUCKET_LABELS.map((label, bucketIndex) => (
+                                <div key={`${tariff.id}-${label}`}>
+                                  <label className="block text-[11px] text-gray-700 mb-1">
+                                    {label}
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={tariff.prices?.[bucketIndex] ?? 0}
+                                    onChange={(e) =>
+                                      handleTariffPriceChange(
+                                        tariffIndex,
+                                        bucketIndex,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-2.5 py-2 text-xs border border-gray-300 rounded-md"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        {groupTariffs.length === 0 && (
+                          <div className="rounded-lg border border-dashed border-indigo-300 p-4 text-xs text-indigo-700 bg-white">
+                            Тарифы не найдены. Добавьте базовый и сезонные тарифы.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
                     <div className="text-sm font-semibold text-indigo-900 mb-3">
                       Цены услуг для всей группы (за сутки)

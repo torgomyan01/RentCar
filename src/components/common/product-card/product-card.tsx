@@ -6,6 +6,11 @@ import Link from 'next/link';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import { getServerImageUrl } from '@/lib/uploads';
 import { usePathname, useSearchParams } from 'next/navigation';
+import {
+  getPriceForDaysByBuckets,
+  resolveTariffPricesForDate,
+  type GroupTariffPricing,
+} from '@/lib/group-pricing-client';
 
 interface ProductCardProps {
   car: Car;
@@ -14,6 +19,7 @@ interface ProductCardProps {
   yearRange?: string;
   uniqueColors?: string[];
   otherInfo?: React.ReactNode;
+  resolvedDailyPrice?: number | null;
 }
 
 // Helper function to format car name
@@ -262,6 +268,59 @@ function getYearRange(cars: Car[] | undefined, currentCar: Car): string {
   return `${minYear}-${maxYear}`;
 }
 
+const groupPricingCache = new Map<string, GroupTariffPricing[]>();
+
+function parseQueryDate(dateStr: string | null): Date | null {
+  if (!dateStr) return null;
+  const [datePart, timePart] = dateStr.trim().split(' ');
+  if (!datePart) return null;
+
+  const separator = datePart.includes('-')
+    ? '-'
+    : datePart.includes('.')
+      ? '.'
+      : '/';
+  const parts = datePart.split(separator).map(Number);
+  if (parts.length !== 3 || parts.some((v) => !Number.isFinite(v))) return null;
+
+  let day = 0;
+  let month = 0;
+  let year = 0;
+  if (String(parts[0]).length === 4) {
+    year = parts[0];
+    month = parts[1];
+    day = parts[2];
+  } else {
+    day = parts[0];
+    month = parts[1];
+    year = parts[2];
+  }
+
+  const [hours, minutes] = timePart
+    ? timePart.split(':').map((v) => Number(v))
+    : [0, 0];
+  return new Date(
+    year,
+    month - 1,
+    day,
+    Number.isFinite(hours) ? hours : 0,
+    Number.isFinite(minutes) ? minutes : 0
+  );
+}
+
+function calculateRentalDaysFromQuery(
+  startDateStr: string | null,
+  endDateStr: string | null
+): number {
+  const startDate = parseQueryDate(startDateStr);
+  const endDate = parseQueryDate(endDateStr);
+  if (!startDate || !endDate) return 0;
+
+  const diffMs = endDate.getTime() - startDate.getTime();
+  if (diffMs <= 0) return 0;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
 function ProductCard({
   car,
   cars,
@@ -269,10 +328,13 @@ function ProductCard({
   yearRange: providedYearRange,
   uniqueColors: providedUniqueColors,
   otherInfo,
+  resolvedDailyPrice,
 }: ProductCardProps) {
   const { openModal } = useRentModal();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const startDate = searchParams.get('start_date');
+  const endDate = searchParams.get('end_date');
 
   // Get all unique colors from cars array
   const allColors = useMemo(() => {
@@ -292,6 +354,7 @@ function ProductCard({
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [groupMediaImage, setGroupMediaImage] = useState<string | null>(null);
+  const [groupTariffs, setGroupTariffs] = useState<GroupTariffPricing[]>([]);
   const mediaFetchedRef = useRef<Set<string>>(new Set());
 
   // Calculate group key (same logic as product-client.tsx)
@@ -351,6 +414,67 @@ function ProductCard({
       fetchGroupMedia(groupKey);
     }
   }, [groupKey, fetchGroupMedia]);
+
+  useEffect(() => {
+    if (!groupKey || !startDate || !endDate) {
+      setGroupTariffs([]);
+      return;
+    }
+
+    const cached = groupPricingCache.get(groupKey);
+    if (cached) {
+      setGroupTariffs(cached);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const encodedGroupKey = encodeURIComponent(groupKey);
+        const response = await fetch(`/api/cars/pricing/${encodedGroupKey}`);
+        const data = await response.json();
+        const tariffs = Array.isArray(data?.tariffs)
+          ? (data.tariffs as GroupTariffPricing[])
+          : [];
+        groupPricingCache.set(groupKey, tariffs);
+        if (!cancelled) {
+          setGroupTariffs(tariffs);
+        }
+      } catch (error) {
+        console.error('Failed to fetch product card pricing:', error);
+        if (!cancelled) {
+          setGroupTariffs([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [groupKey, startDate, endDate]);
+
+  const seasonalDailyPriceFromQuery = useMemo(() => {
+    if (!startDate || !endDate || !groupKey || groupTariffs.length === 0) {
+      return null;
+    }
+    const rentalDays = calculateRentalDaysFromQuery(startDate, endDate);
+    if (rentalDays <= 0) return null;
+
+    const pricesByDate = resolveTariffPricesForDate(groupTariffs, startDate);
+    const price = getPriceForDaysByBuckets(pricesByDate, rentalDays);
+    return Number.isFinite(price) && price > 0 ? price : null;
+  }, [groupTariffs, groupKey, startDate, endDate]);
+
+  const cardDisplayPrice = useMemo(() => {
+    if (
+      typeof resolvedDailyPrice === 'number' &&
+      Number.isFinite(resolvedDailyPrice) &&
+      resolvedDailyPrice > 0
+    ) {
+      return resolvedDailyPrice;
+    }
+    return seasonalDailyPriceFromQuery;
+  }, [resolvedDailyPrice, seasonalDailyPriceFromQuery]);
 
   const productUrl = useMemo(() => {
     const startDate = searchParams.get('start_date');
@@ -412,7 +536,7 @@ function ProductCard({
             />
           ) : (
             <div
-              className="product-card-no-image !w-full h-[250px]!"
+              className="product-card-no-image w-full! h-[250px]!"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -530,7 +654,13 @@ function ProductCard({
         <>
           <div className="price-info">
             <span>Стоимость аренды</span>
-            <b className="price">{formatPrice(car)}</b>
+            <b className="price">
+              {typeof cardDisplayPrice === 'number' &&
+              Number.isFinite(cardDisplayPrice) &&
+              cardDisplayPrice > 0
+                ? `${cardDisplayPrice.toLocaleString('ru-RU')} ₽/сутки`
+                : formatPrice(car)}
+            </b>
           </div>
         </>
       )}

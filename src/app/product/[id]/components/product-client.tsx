@@ -13,7 +13,7 @@ import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MainTemplate from '@/components/common/main-template/main-template';
 import Breadcrumbs from '@/components/common/breadcrumbs/breadcrumbs';
-import type { Car, PriceItem } from '@/lib/rentprog-api-server';
+import type { Car } from '@/lib/rentprog-api-server';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Thumbs } from 'swiper/modules';
 import 'swiper/css';
@@ -44,6 +44,17 @@ type SeasonLike = {
   season_id?: number | string | null;
   start_date?: string;
   end_date?: string;
+};
+
+type GroupTariffPricing = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  isActive: boolean;
+  order: number;
+  startDayMonth: string | null;
+  endDayMonth: string | null;
+  prices: number[];
 };
 
 function InlineSkeleton({
@@ -355,135 +366,66 @@ function getSeasonWindowForDate(
   return { startDate, endDate, seasonId: getSeasonId(season) };
 }
 
-function resolvePricingForDate(
-  car: Car,
+function resolvePricingFromAdminTariffs(
+  tariffs: GroupTariffPricing[],
   startDateStr: string | null
 ): { prices: number[]; tariffWarningDate: Date | null } {
-  const pricesArray = car.prices || car.price;
   const parsedReferenceDate = parseSearchDate(startDateStr) || new Date();
   const referenceDate = new Date(
     parsedReferenceDate.getFullYear(),
     parsedReferenceDate.getMonth(),
     parsedReferenceDate.getDate()
   );
-  const seasons = Array.isArray((car as any)?.seasons)
-    ? ((car as any).seasons as SeasonLike[])
+
+  const activeTariffs = Array.isArray(tariffs)
+    ? tariffs.filter((tariff) => tariff && tariff.isActive !== false)
     : [];
 
-  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
-    if (
-      typeof pricesArray[0] === 'object' &&
-      pricesArray[0] !== null &&
-      'values' in pricesArray[0]
-    ) {
-      const items = pricesArray as PriceItem[];
-      const defaultItem =
-        items.find((item) => item && item.season_id == null) ||
-        items[0] ||
-        ({} as PriceItem);
-      const seasonalPriceItems = items.filter(
-        (item) => item && item.season_id != null
-      );
-      const seasonalDefinitions = seasons;
-      const seasonalPriceBySeasonId = new Map<string, PriceItem>();
-      for (const item of seasonalPriceItems) {
-        if (item?.season_id == null) continue;
-        seasonalPriceBySeasonId.set(String(item.season_id), item);
-      }
-      const hasExplicitSeasonMapping = seasonalPriceBySeasonId.size > 0;
-      const canUsePositionalFallback =
-        !hasExplicitSeasonMapping && items.length > 0;
+  const defaultTariff =
+    activeTariffs.find((tariff) => tariff.isDefault) || activeTariffs[0] || null;
+  const seasonalTariffs = activeTariffs.filter(
+    (tariff) => !tariff.isDefault && tariff.startDayMonth && tariff.endDayMonth
+  );
 
-      const getSeasonPriceByPosition = (
-        seasonIndex: number
-      ): PriceItem | undefined => {
-        if (seasonIndex < 0) return undefined;
-
-        // Case A: one price row per season row.
-        if (items.length === seasonalDefinitions.length) {
-          return items[seasonIndex];
-        }
-
-        // Case B: CRM keeps base period as seasons[0], and prices start from seasons[1].
-        if (items.length === Math.max(0, seasonalDefinitions.length - 1)) {
-          if (seasonIndex === 0) {
-            return items[0];
-          }
-          return items[seasonIndex - 1];
-        }
-
-        // Case C: only one tariff row in prices - use it for active season.
-        if (items.length === 1) {
-          return items[0];
-        }
-
-        return undefined;
-      };
-
-      for (let i = 0; i < seasonalDefinitions.length; i += 1) {
-        const season = seasonalDefinitions[i];
-        const window = getSeasonWindowForDate(season, referenceDate);
-        if (!window) continue;
-
-        if (
-          referenceDate >= window.startDate &&
-          referenceDate <= window.endDate
-        ) {
-          const seasonId = getSeasonId(season);
-          const matchedBySeasonId =
-            seasonId != null
-              ? seasonalPriceBySeasonId.get(String(seasonId))
-              : undefined;
-          const seasonPriceItem =
-            matchedBySeasonId ||
-            (canUsePositionalFallback
-              ? getSeasonPriceByPosition(i)
-              : undefined);
-          if (!seasonPriceItem) continue;
-
-          return {
-            prices: normalizePrices(seasonPriceItem.values),
-            // In season: warning should show end of active seasonal tariff.
-            tariffWarningDate: window.endDate,
-          };
-        }
-      }
-
-      // Not in seasonal window -> use default and show warning until ближайший
-      // upcoming seasonal start (e.g. "до 01 июня ... включительно").
-      let nearestSeasonStart: Date | null = null;
-      for (const season of seasonalDefinitions) {
-        const seasonId = getSeasonId(season);
-        const isSeasonPriced =
-          seasonId != null && seasonalPriceBySeasonId.has(String(seasonId));
-        if (!isSeasonPriced && !canUsePositionalFallback) continue;
-
-        const window = getSeasonWindowForDate(season, referenceDate);
-        if (!window) continue;
-        if (window.startDate > referenceDate) {
-          if (!nearestSeasonStart || window.startDate < nearestSeasonStart) {
-            nearestSeasonStart = window.startDate;
-          }
-        }
-      }
-
+  for (const tariff of seasonalTariffs) {
+    const window = getSeasonWindowForDate(
+      {
+        id: tariff.id,
+        start_date: tariff.startDayMonth || '',
+        end_date: tariff.endDayMonth || '',
+      },
+      referenceDate
+    );
+    if (!window) continue;
+    if (referenceDate >= window.startDate && referenceDate <= window.endDate) {
       return {
-        prices: normalizePrices(defaultItem.values),
-        tariffWarningDate: nearestSeasonStart,
-      };
-    }
-
-    if (typeof pricesArray[0] === 'number') {
-      return {
-        prices: normalizePrices(pricesArray as unknown as number[]),
-        tariffWarningDate: null,
+        prices: normalizePrices(tariff.prices),
+        tariffWarningDate: window.endDate,
       };
     }
   }
 
+  let nearestSeasonStart: Date | null = null;
+  for (const tariff of seasonalTariffs) {
+    const window = getSeasonWindowForDate(
+      {
+        id: tariff.id,
+        start_date: tariff.startDayMonth || '',
+        end_date: tariff.endDayMonth || '',
+      },
+      referenceDate
+    );
+    if (!window) continue;
+    if (window.startDate > referenceDate) {
+      if (!nearestSeasonStart || window.startDate < nearestSeasonStart) {
+        nearestSeasonStart = window.startDate;
+      }
+    }
+  }
+
   return {
-    prices: [2500, 2250, 2000, 1900, 1700],
-    tariffWarningDate: null,
+    prices: normalizePrices(defaultTariff?.prices),
+    tariffWarningDate: nearestSeasonStart,
   };
 }
 
@@ -650,6 +592,10 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const [isCarDetailsLoading, setIsCarDetailsLoading] = useState(
     Boolean(car?.id)
   );
+  const [groupTariffs, setGroupTariffs] = useState<GroupTariffPricing[]>([]);
+  const [isGroupPricingLoading, setIsGroupPricingLoading] = useState(
+    Boolean(car?.id)
+  );
   const [servicePricing, setServicePricing] = useState<ServicePricing>({
     calmPricePerDay: 2000,
     cascoPricePerDay: 1000,
@@ -794,7 +740,6 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
       cancelled = true;
     };
   }, [car?.id]);
-  const showCalculatedLoader = Boolean(car?.id) && isCarDetailsLoading;
 
   // Group cars by model (same car, different colors and years)
   const carGroup = useMemo(() => {
@@ -861,6 +806,48 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
 
     return key;
   }, [carGroup]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchGroupPricing = async () => {
+      if (!groupKey) {
+        if (!cancelled) {
+          setGroupTariffs([]);
+          setIsGroupPricingLoading(false);
+        }
+        return;
+      }
+
+      setIsGroupPricingLoading(true);
+      try {
+        const encodedGroupKey = encodeURIComponent(groupKey);
+        const response = await fetch(`/api/cars/pricing/${encodedGroupKey}`);
+        const data = await response.json();
+        if (!cancelled) {
+          setGroupTariffs(Array.isArray(data?.tariffs) ? data.tariffs : []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch group pricing:', error);
+        if (!cancelled) {
+          setGroupTariffs([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsGroupPricingLoading(false);
+        }
+      }
+    };
+
+    fetchGroupPricing();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [groupKey]);
+
+  const showCalculatedLoader =
+    (Boolean(car?.id) && isCarDetailsLoading) || isGroupPricingLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -994,8 +981,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   }, [carGroup]);
 
   const pricingForSelectedDate = useMemo(() => {
-    return resolvePricingForDate(resolvedCar, startDate);
-  }, [resolvedCar, startDate]);
+    return resolvePricingFromAdminTariffs(groupTariffs, startDate);
+  }, [groupTariffs, startDate]);
   const prices = pricingForSelectedDate.prices;
   const pricePeriods = useMemo(() => {
     const sourceCar = resolvedCar as any;

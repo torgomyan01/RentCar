@@ -69,8 +69,17 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
     { label: 'Главная: авто', href: '/admin/home-cars', icon: 'fa-house' },
     { label: 'Telegram', href: '/admin/telegram', icon: 'fa-paper-plane' },
     { label: 'Настройки', href: '/admin/settings', icon: 'fa-gear' },
-    { label: 'Создать пользователя', href: '/admin/users/create', icon: 'fa-user-plus' },
+    {
+      label: 'Создать пользователя',
+      href: '/admin/users/create',
+      icon: 'fa-user-plus',
+    },
     { label: 'Список пользователей', href: '/admin/users', icon: 'fa-users' },
+    {
+      label: 'Документация тарифов',
+      href: '/admin/pricing-docs',
+      icon: 'fa-book',
+    },
   ];
 
   return (
@@ -84,7 +93,9 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
           aria-label={mobileMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
           aria-expanded={mobileMenuOpen}
         >
-          <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`} />
+          <i
+            className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}
+          />
         </button>
         <span className="text-lg font-semibold">Admin Panel</span>
         <div className="w-10" />
@@ -116,15 +127,17 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
         }
       >
         <div className="p-4 md:p-6 border-b border-gray-700 flex items-center justify-between bg-gray-900 shrink-0">
-          {(!isMobile && sidebarOpen) && (
+          {!isMobile && sidebarOpen && (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shrink-0">
                 <i className="fas fa-shield-halved text-white text-lg" />
               </div>
-              <h2 className="text-xl font-bold text-white truncate">Admin Panel</h2>
+              <h2 className="text-xl font-bold text-white truncate">
+                Admin Panel
+              </h2>
             </div>
           )}
-          {(!isMobile && !sidebarOpen) && (
+          {!isMobile && !sidebarOpen && (
             <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center mx-auto shrink-0">
               <i className="fas fa-shield-halved text-white text-lg" />
             </div>
@@ -144,7 +157,9 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
               className="bg-gray-800 hover:bg-gray-700 border-none text-white cursor-pointer text-lg p-2 rounded-lg transition-all duration-200 hover:scale-110 shrink-0 touch-manipulation"
               aria-label={sidebarOpen ? 'Свернуть меню' : 'Развернуть меню'}
             >
-              <i className={`fas ${sidebarOpen ? 'fa-chevron-left' : 'fa-chevron-right'}`} />
+              <i
+                className={`fas ${sidebarOpen ? 'fa-chevron-left' : 'fa-chevron-right'}`}
+              />
             </button>
           )}
           {isMobile && (
@@ -170,9 +185,10 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
                 className={`
                   flex items-center px-4 md:px-6 py-3 md:py-4 no-underline transition-all duration-200 group w-full
                   min-h-[48px] touch-manipulation active:bg-gray-800/50
-                  ${isActive
-                    ? 'text-white bg-gradient-to-r from-red-600 to-red-700 border-l-4 border-red-400 shadow-lg'
-                    : 'text-gray-300 bg-transparent border-l-4 border-transparent hover:bg-gray-800 hover:text-white hover:border-gray-600'
+                  ${
+                    isActive
+                      ? 'text-white bg-gradient-to-r from-red-600 to-red-700 border-l-4 border-red-400 shadow-lg'
+                      : 'text-gray-300 bg-transparent border-l-4 border-transparent hover:bg-gray-800 hover:text-white hover:border-gray-600'
                   }
                 `}
               >
@@ -184,7 +200,9 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
                   `}
                 />
                 {(isMobile || sidebarOpen) && (
-                  <span className={`text-sm font-medium ml-3 md:ml-0 md:mr-0 truncate ${isActive ? 'font-semibold' : ''}`}>
+                  <span
+                    className={`text-sm font-medium ml-3 md:ml-0 md:mr-0 truncate ${isActive ? 'font-semibold' : ''}`}
+                  >
                     {item.label}
                   </span>
                 )}
@@ -194,10 +212,12 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
         </nav>
 
         <div className="p-4 border-t border-gray-700 bg-gray-900 shrink-0">
-          {(isMobile || sidebarOpen) ? (
+          {isMobile || sidebarOpen ? (
             <div className="space-y-2">
               {username && (
-                <div className="text-xs text-gray-500 truncate px-1">{username}</div>
+                <div className="text-xs text-gray-500 truncate px-1">
+                  {username}
+                </div>
               )}
               <button
                 type="button"
@@ -207,7 +227,9 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
                 <i className="fas fa-sign-out-alt" />
                 Выйти
               </button>
-              <div className="text-xs text-gray-400 text-center">© {new Date().getFullYear()}</div>
+              <div className="text-xs text-gray-400 text-center">
+                © {new Date().getFullYear()}
+              </div>
             </div>
           ) : (
             <button
