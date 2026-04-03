@@ -91,6 +91,8 @@ model CarServicePricing {
   calmPricePerDay   Int      @default(2000) // Пакет "Спокойствие"
   cascoPricePerDay  Int      @default(1000) // КАСКО
   fullCascoPricePerDay Int   @default(3000) // Полное КАСКО
+  minAgeYears       Int      @default(25) // Минимальный возраст арендатора
+  minExperienceYears Int     @default(3) // Минимальный стаж вождения
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

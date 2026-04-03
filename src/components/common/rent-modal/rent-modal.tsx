@@ -321,6 +321,14 @@ ${carBlock ? `${carBlock}\n` : ''}
       const periodText = `${formatD(startDate)} ${startTime} – ${formatD(endDate)} ${endTime}`;
       const carName = formatCarName(car);
       const extraTimeFeeInfo = calculateExtraTimeFee(startTime, endTime);
+      const depositValue =
+        typeof car.deposit === 'number' && Number.isFinite(car.deposit)
+          ? car.deposit
+          : null;
+      const depositText =
+        depositValue !== null
+          ? `${depositValue.toLocaleString('ru-RU')} ₽`
+          : 'не указан';
       const message = `
 🚗 *Заявка на аренду автомобиля*
 
@@ -334,6 +342,7 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
           ? `да (+ ${extraTimeFeeInfo.totalFee.toLocaleString('ru-RU')} ₽: ${extraTimeFeeInfo.eventsCount} × ${EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)`
           : 'нет'
       }
+💰 *Депозит:* ${depositText}
 
 👤 *Клиент:*
 • Имя: ${name}

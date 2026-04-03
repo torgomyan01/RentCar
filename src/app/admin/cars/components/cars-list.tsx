@@ -25,6 +25,8 @@ interface ServicePricing {
   calmPricePerDay: number;
   cascoPricePerDay: number;
   fullCascoPricePerDay: number;
+  minAgeYears: number;
+  minExperienceYears: number;
 }
 
 interface GroupTariff {
@@ -66,6 +68,8 @@ export default function CarsList({ initialCars }: CarsListProps) {
     calmPricePerDay: 2000,
     cascoPricePerDay: 1000,
     fullCascoPricePerDay: 3000,
+    minAgeYears: 25,
+    minExperienceYears: 3,
   });
   const [savingGroupPricing, setSavingGroupPricing] = useState(false);
   const [groupTariffs, setGroupTariffs] = useState<GroupTariff[]>([]);
@@ -272,6 +276,8 @@ export default function CarsList({ initialCars }: CarsListProps) {
           calmPricePerDay: Number(data?.calmPricePerDay ?? 2000),
           cascoPricePerDay: Number(data?.cascoPricePerDay ?? 1000),
           fullCascoPricePerDay: Number(data?.fullCascoPricePerDay ?? 3000),
+          minAgeYears: Number(data?.minAgeYears ?? 25),
+          minExperienceYears: Number(data?.minExperienceYears ?? 3),
         });
       })
       .catch((error) => {
@@ -452,6 +458,8 @@ export default function CarsList({ initialCars }: CarsListProps) {
           calmPricePerDay: groupPricing.calmPricePerDay,
           cascoPricePerDay: groupPricing.cascoPricePerDay,
           fullCascoPricePerDay: groupPricing.fullCascoPricePerDay,
+          minAgeYears: groupPricing.minAgeYears,
+          minExperienceYears: groupPricing.minExperienceYears,
         }),
       });
       const data = await response.json();
@@ -1130,9 +1138,9 @@ export default function CarsList({ initialCars }: CarsListProps) {
 
                   <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
                     <div className="text-sm font-semibold text-indigo-900 mb-3">
-                      Цены услуг для всей группы (за сутки)
+                      Настройки группы (цены и требования)
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                       <div>
                         <label className="block text-xs text-gray-700 mb-1">
                           Спокойствие
@@ -1172,6 +1180,39 @@ export default function CarsList({ initialCars }: CarsListProps) {
                           onChange={(e) =>
                             handlePricingChange(
                               'fullCascoPricePerDay',
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-1">
+                          Мин. возраст (лет)
+                        </label>
+                        <input
+                          type="number"
+                          min={18}
+                          max={80}
+                          value={groupPricing.minAgeYears}
+                          onChange={(e) =>
+                            handlePricingChange('minAgeYears', e.target.value)
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-1">
+                          Мин. стаж (лет)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={groupPricing.minExperienceYears}
+                          onChange={(e) =>
+                            handlePricingChange(
+                              'minExperienceYears',
                               e.target.value
                             )
                           }

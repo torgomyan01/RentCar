@@ -456,6 +456,8 @@ interface ServicePricing {
   calmPricePerDay: number;
   cascoPricePerDay: number;
   fullCascoPricePerDay: number;
+  minAgeYears: number;
+  minExperienceYears: number;
 }
 
 /** price = итог за период; при billing === 'perDay' price = pricePerDay * суток */
@@ -618,6 +620,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     calmPricePerDay: 2000,
     cascoPricePerDay: 1000,
     fullCascoPricePerDay: 3000,
+    minAgeYears: 25,
+    minExperienceYears: 3,
   });
 
   const rentalDays = useMemo(
@@ -649,6 +653,13 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   };
 
   const renterMinAgeYears = useMemo(() => {
+    if (
+      Number.isFinite(servicePricing.minAgeYears) &&
+      servicePricing.minAgeYears >= 18 &&
+      servicePricing.minAgeYears <= 80
+    ) {
+      return Math.floor(servicePricing.minAgeYears);
+    }
     const carAny = resolvedCar as any;
     const candidates = [
       carAny.min_age,
@@ -669,9 +680,16 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         }
       ) ?? 25
     );
-  }, [resolvedCar]);
+  }, [resolvedCar, servicePricing.minAgeYears]);
 
   const driverMinExperienceYears = useMemo(() => {
+    if (
+      Number.isFinite(servicePricing.minExperienceYears) &&
+      servicePricing.minExperienceYears >= 1 &&
+      servicePricing.minExperienceYears <= 60
+    ) {
+      return Math.floor(servicePricing.minExperienceYears);
+    }
     const carAny = resolvedCar as any;
     const candidates = [
       carAny.min_experience,
@@ -695,7 +713,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
         }
       ) ?? 3
     );
-  }, [resolvedCar]);
+  }, [resolvedCar, servicePricing.minExperienceYears]);
   const includedMileage = useMemo(() => {
     return getIncludedMileageLimit(rentalDays, resolvedCar?.extra_mileage_km);
   }, [rentalDays, resolvedCar?.extra_mileage_km]);
@@ -885,6 +903,8 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
             calmPricePerDay: Number(data?.calmPricePerDay ?? 2000),
             cascoPricePerDay: Number(data?.cascoPricePerDay ?? 1000),
             fullCascoPricePerDay: Number(data?.fullCascoPricePerDay ?? 3000),
+            minAgeYears: Number(data?.minAgeYears ?? 25),
+            minExperienceYears: Number(data?.minExperienceYears ?? 3),
           });
         }
       } catch (error) {
@@ -1303,8 +1323,8 @@ ${selectedOptionsText ? `• Дополнительные опции:\n${selecte
           : 'нет'
       }
 • Депозит: ${depositDisplay}
-• Итого без депозита: ${totalWithoutDeposit.toLocaleString('ru-RU')} ₽
-• Итого с депозитом: ${totalWithDeposit.toLocaleString('ru-RU')} ₽
+• Итого аренда (без депозита): ${totalWithoutDeposit.toLocaleString('ru-RU')} ₽
+• Итого к оплате (с депозитом): ${totalWithDeposit.toLocaleString('ru-RU')} ₽
       `.trim();
 
       // Format complete message (API will add its own header)
@@ -1570,7 +1590,7 @@ ${pricingInfo}
                           style={{ cursor: 'pointer' }}
                         >
                           <img src="/img/play-icon.svg" alt="" />
-                          <span>Видео обзор машины</span>
+                          <span>Видеообзор машины</span>
                         </div>
                       )}
                       <Image
@@ -1725,14 +1745,14 @@ ${pricingInfo}
             {!showCalculatedLoader &&
               shouldShowTariffWarning &&
               tariffValidUntilText && (
-              <div className="info-texts">
-                <img src="/img/info-img.svg" alt="" />
-                <p>
-                  <span className="red-text">Внимание!</span> Текущий тариф
-                  действует до {tariffValidUntilText} включительно
-                </p>
-              </div>
-            )}
+                <div className="info-texts">
+                  <img src="/img/info-img.svg" alt="" />
+                  <p>
+                    <span className="red-text">Внимание!</span> Текущий тариф
+                    действует до {tariffValidUntilText} включительно
+                  </p>
+                </div>
+              )}
           </div>
 
           {hasSearchPeriodInQuery ? (
@@ -2355,7 +2375,7 @@ ${pricingInfo}
                 </div>
                 <div>
                   <h3 className="text-white font-semibold text-lg">
-                    Видео обзор машины
+                    Видеообзор автомобиля
                   </h3>
                   <p className="text-gray-400 text-xs">Просмотр видео</p>
                 </div>
@@ -2387,7 +2407,7 @@ ${pricingInfo}
                   className="w-full h-[75vh]"
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
-                  title="Видео обзор машины"
+                  title="Видеообзор автомобиля"
                 />
               ) : (
                 <video

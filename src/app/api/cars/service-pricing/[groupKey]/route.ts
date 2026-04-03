@@ -5,6 +5,8 @@ const DEFAULTS = {
   calmPricePerDay: 2000,
   cascoPricePerDay: 1000,
   fullCascoPricePerDay: 3000,
+  minAgeYears: 25,
+  minExperienceYears: 3,
 };
 
 export async function GET(
@@ -32,6 +34,9 @@ export async function GET(
       cascoPricePerDay: row.cascoPricePerDay ?? DEFAULTS.cascoPricePerDay,
       fullCascoPricePerDay:
         row.fullCascoPricePerDay ?? DEFAULTS.fullCascoPricePerDay,
+      minAgeYears: row.minAgeYears ?? DEFAULTS.minAgeYears,
+      minExperienceYears:
+        row.minExperienceYears ?? DEFAULTS.minExperienceYears,
     });
   } catch (error: any) {
     console.error('GET /api/cars/service-pricing/[groupKey] error:', error);
