@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import type { Car } from '@/lib/rentprog-api-server';
+import moment from 'moment';
 import {
   calculateExtraTimeFee,
   EXTRA_TIME_FEE_PER_EVENT_RUB,
@@ -135,62 +136,32 @@ const RentModal = ({
   };
 
   const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    const days = [];
-
-    // Previous month's days
-    const prevMonth = new Date(year, month - 1, 0);
-    const prevMonthDays = prevMonth.getDate();
-    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      days.push(new Date(year, month - 1, prevMonthDays - i));
-    }
-
-    // Current month's days
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-
-    // Next month's days to fill the grid
-    const remainingDays = 42 - days.length;
-    for (let i = 1; i <= remainingDays; i++) {
-      days.push(new Date(year, month + 1, i));
-    }
-
-    return days;
+    const gridStart = moment(date).startOf('month').startOf('isoWeek');
+    return Array.from({ length: 42 }, (_, idx) =>
+      gridStart.clone().add(idx, 'day').toDate()
+    );
   };
 
   const isDateInRange = (date: Date) => {
     if (!startDate || !endDate) return false;
-    const dateTime = date.getTime();
-    const startTime = startDate.getTime();
-    const endTime = endDate.getTime();
-    return dateTime > startTime && dateTime < endTime;
+    const current = moment(date);
+    return current.isAfter(moment(startDate), 'day') && current.isBefore(moment(endDate), 'day');
   };
 
   const isDateSelected = (date: Date) => {
     if (!startDate && !endDate) return false;
-    const dateStr = date.toDateString();
-    if (startDate && dateStr === startDate.toDateString()) return true;
-    if (endDate && dateStr === endDate.toDateString()) return true;
+    if (startDate && moment(date).isSame(moment(startDate), 'day')) return true;
+    if (endDate && moment(date).isSame(moment(endDate), 'day')) return true;
     return false;
   };
 
   const isDateMuted = (date: Date) => {
-    return date.getMonth() !== currentMonth.getMonth();
+    return !moment(date).isSame(moment(currentMonth), 'month');
   };
 
   // Check if date is in the past (before today)
   const isDateDisabled = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dateToCheck = new Date(date);
-    dateToCheck.setHours(0, 0, 0, 0);
-    return dateToCheck < today;
+    return moment(date).isBefore(moment().startOf('day'), 'day');
   };
 
   const handleDateClick = (date: Date) => {
