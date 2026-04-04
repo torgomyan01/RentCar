@@ -2555,6 +2555,10 @@ a {
       padding-left: 18px;
       padding-right: 18px;
     }
+
+    &.mobile {
+      padding-top: 5px;
+    }
   }
 
   .time-range-input {
@@ -2632,6 +2636,10 @@ a {
     white-space: nowrap;
     pointer-events: none;
     z-index: 3;
+
+    &.mobile {
+      top: 13px;
+    }
   }
 
   .rent-note {

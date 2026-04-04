@@ -11,7 +11,12 @@ import type { Car } from '@/lib/rentprog-api-server';
 import { useAppSelector } from '@/store/store';
 import { useSearchParams } from 'next/navigation';
 import { calculateExtraTimeFee } from '@/lib/business-hours-fee';
-import { parseMileageInput } from '@/lib/mileage-pricing';
+import {
+  getExtraMileageFee,
+  getExtraMileageKm,
+  getIncludedMileageLimit,
+  parseMileageInput,
+} from '@/lib/mileage-pricing';
 import {
   getPriceForDaysByBuckets,
   resolveTariffPricesForDate,
@@ -73,6 +78,85 @@ function getCarMinDisplayedPrice(car: Car): number {
   }
 
   return Infinity;
+}
+
+function getGroupMinDisplayedPrice(cars: Car[]): number {
+  const values = cars
+    .map((car) => getCarMinDisplayedPrice(car))
+    .filter((v) => Number.isFinite(v));
+  return values.length > 0 ? Math.min(...values) : Infinity;
+}
+
+function extractFivePricesForSort(car: Car): number[] {
+  const pricesArray = car.prices || car.price;
+
+  if (Array.isArray(pricesArray) && pricesArray.length > 0) {
+    if (
+      typeof pricesArray[0] === 'object' &&
+      pricesArray[0] !== null &&
+      'values' in pricesArray[0]
+    ) {
+      const firstItem = pricesArray[0] as { values?: number[] };
+      if (Array.isArray(firstItem.values) && firstItem.values.length > 0) {
+        const values = firstItem.values.filter(
+          (v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
+        );
+        if (values.length > 0) {
+          const padded = [...values];
+          while (padded.length < 5) padded.push(padded[padded.length - 1] || 0);
+          return padded.slice(0, 5);
+        }
+      }
+    }
+
+    if (typeof pricesArray[0] === 'number') {
+      const nums = (pricesArray as unknown as number[]).filter(
+        (v) => Number.isFinite(v) && v > 0
+      );
+      if (nums.length > 0) {
+        const padded = [...nums];
+        while (padded.length < 5) padded.push(padded[padded.length - 1] || 0);
+        return padded.slice(0, 5);
+      }
+    }
+  }
+
+  if (typeof car.price === 'number' && Number.isFinite(car.price) && car.price > 0) {
+    return [car.price, car.price, car.price, car.price, car.price];
+  }
+
+  if (typeof car.price_from === 'string') {
+    const parsed = Number(car.price_from.replace(/[^\d]/g, ''));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return [parsed, parsed, parsed, parsed, parsed];
+    }
+  }
+
+  return [Infinity, Infinity, Infinity, Infinity, Infinity];
+}
+
+function getFinalCardTotalForSort(
+  car: Car,
+  rentalDays: number,
+  requestedMileage: number,
+  extraTimeFeeAmount: number,
+  overridePrices?: number[]
+): number {
+  if (!rentalDays || rentalDays < 1) return Infinity;
+
+  const prices =
+    Array.isArray(overridePrices) && overridePrices.length > 0
+      ? overridePrices
+      : extractFivePricesForSort(car);
+  const dailyPrice = getPriceForDaysByBuckets(prices, rentalDays);
+  if (!Number.isFinite(dailyPrice) || dailyPrice <= 0) return Infinity;
+
+  const rentalTotal = dailyPrice * rentalDays;
+  const includedMileage = getIncludedMileageLimit(rentalDays, car.extra_mileage_km);
+  const extraMileageKm = getExtraMileageKm(requestedMileage, includedMileage);
+  const extraMileageFee = getExtraMileageFee(extraMileageKm, car.extra_mileage_price);
+
+  return rentalTotal + extraTimeFeeAmount + extraMileageFee;
 }
 
 function SearchPage() {
@@ -345,43 +429,6 @@ function SearchPage() {
     };
   }, [isPricingRequired, missingPricingKeys]);
 
-  const getGroupSortAndDisplayPrice = (
-    mainCar: Car,
-    groupKey: string
-  ): number => {
-    const fallbackMin = getCarMinDisplayedPrice(mainCar);
-
-    if (!startDate || rentalDays <= 0) {
-      return fallbackMin;
-    }
-
-    const tariffs = groupPricingMap[groupKey];
-    if (!Array.isArray(tariffs) || tariffs.length === 0) {
-      return fallbackMin;
-    }
-
-    const pricesByDate = resolveTariffPricesForDate(tariffs, startDate);
-    const selectedPrice = getPriceForDaysByBuckets(pricesByDate, rentalDays);
-
-    if (Number.isFinite(selectedPrice) && selectedPrice > 0) {
-      return selectedPrice;
-    }
-
-    return fallbackMin;
-  };
-
-  const groupedCars = useMemo(() => {
-    const grouped = groupCarsByModel(filteredCars);
-    return grouped.sort((a, b) => {
-      const aMain = a[0];
-      const bMain = b[0];
-      const aGroupKey = getCarGroupKey(aMain);
-      const bGroupKey = getCarGroupKey(bMain);
-      const aPrice = getGroupSortAndDisplayPrice(aMain, aGroupKey);
-      const bPrice = getGroupSortAndDisplayPrice(bMain, bGroupKey);
-      return aPrice - bPrice;
-    });
-  }, [filteredCars, startDate, rentalDays, groupPricingMap]);
   const allCarsByGroup = useMemo(() => {
     const grouped = new Map<string, Car[]>();
     allCars.forEach((car) => {
@@ -397,6 +444,82 @@ function SearchPage() {
   const extraTimeFeeInfo = useMemo(() => {
     return calculateExtraTimeFee(startDate, endDate);
   }, [startDate, endDate]);
+  const extraTimeFeeAmount = extraTimeFeeInfo.totalFee;
+
+  const groupedCarsData = useMemo(() => {
+    const grouped = groupCarsByModel(filteredCars);
+
+    const resolveGroupDailyPrice = (groupKey: string, groupCars: Car[]): number => {
+      const fallbackMin = getGroupMinDisplayedPrice(groupCars);
+      if (!startDate || rentalDays <= 0) {
+        return fallbackMin;
+      }
+
+      const tariffs = groupPricingMap[groupKey];
+      if (!Array.isArray(tariffs) || tariffs.length === 0) {
+        return fallbackMin;
+      }
+
+      const pricesByDate = resolveTariffPricesForDate(tariffs, startDate);
+      const selectedPrice = getPriceForDaysByBuckets(pricesByDate, rentalDays);
+      if (Number.isFinite(selectedPrice) && selectedPrice > 0) {
+        return selectedPrice;
+      }
+      return fallbackMin;
+    };
+
+    const rows = grouped.map((carGroup) => {
+      const mainCar = carGroup[0];
+      const groupKey = getCarGroupKey(mainCar);
+      const fullCarGroup = allCarsByGroup.get(groupKey) || carGroup;
+      const tariffs = groupPricingMap[groupKey];
+      const resolvedTariffPrices =
+        startDate &&
+        rentalDays > 0 &&
+        Array.isArray(tariffs) &&
+        tariffs.length > 0
+          ? resolveTariffPricesForDate(tariffs, startDate)
+          : null;
+      const resolvedDailyPrice = resolvedTariffPrices
+        ? getPriceForDaysByBuckets(resolvedTariffPrices, rentalDays)
+        : resolveGroupDailyPrice(groupKey, fullCarGroup);
+      const sortTotal = getFinalCardTotalForSort(
+        mainCar,
+        rentalDays,
+        requestedMileage,
+        extraTimeFeeAmount,
+        resolvedTariffPrices || undefined
+      );
+      return {
+        groupKey,
+        mainCar,
+        fullCarGroup,
+        resolvedTariffPrices,
+        resolvedDailyPrice,
+        sortTotal,
+      };
+    });
+
+    rows.sort((a, b) => {
+      if (a.sortTotal !== b.sortTotal) {
+        return a.sortTotal - b.sortTotal;
+      }
+      return (a.mainCar.car_name || '').localeCompare(
+        b.mainCar.car_name || '',
+        'ru-RU'
+      );
+    });
+
+    return rows;
+  }, [
+    filteredCars,
+    allCarsByGroup,
+    startDate,
+    rentalDays,
+    requestedMileage,
+    extraTimeFeeAmount,
+    groupPricingMap,
+  ]);
 
   // Calculate included mileage (200 km per day)
   const includedMileage = useMemo(() => {
@@ -429,7 +552,7 @@ function SearchPage() {
         <div className="container">
           <div className="found" id="search-results" ref={resultsAnchorRef}>
             <h3>найдено автомобилей</h3>
-            <span className="num">{groupedCars.length}</span>
+            <span className="num">{groupedCarsData.length}</span>
           </div>
           <CatalogTabs
             tabs={tabs}
@@ -456,35 +579,37 @@ function SearchPage() {
             )}
             {!loading && !error && (
               <>
-                {pricingReady && groupedCars.length > 0 ? (
-                  groupedCars.map((carGroup, index) => {
-                    const mainCar = carGroup[0];
-                    const groupKey = getCarGroupKey(mainCar);
-                    const fullCarGroup =
-                      allCarsByGroup.get(groupKey) || carGroup;
-                    const resolvedDailyPrice = getGroupSortAndDisplayPrice(
-                      mainCar,
-                      groupKey
-                    );
-
+                {pricingReady && groupedCarsData.length > 0 ? (
+                  groupedCarsData.map((row, index) => {
                     return (
-                      <div key={mainCar.id || mainCar.car_name || index}>
+                      <div key={row.mainCar.id || row.mainCar.car_name || index}>
                         <ProductCard
-                          car={mainCar}
-                          cars={fullCarGroup}
+                          car={row.mainCar}
+                          cars={row.fullCarGroup}
                           index={index}
-                          yearRange={getYearRange(fullCarGroup)}
-                          uniqueColors={getUniqueColors(fullCarGroup)}
-                          resolvedDailyPrice={resolvedDailyPrice}
+                          yearRange={getYearRange(row.fullCarGroup)}
+                          uniqueColors={getUniqueColors(row.fullCarGroup)}
+                          resolvedDailyPrice={row.resolvedDailyPrice}
                           otherInfo={
                             <RentalInfo
-                              car={mainCar}
+                              car={
+                                row.resolvedTariffPrices
+                                  ? ({
+                                      ...row.mainCar,
+                                      prices: [
+                                        {
+                                          values: row.resolvedTariffPrices,
+                                        } as any,
+                                      ],
+                                    } as Car)
+                                  : row.mainCar
+                              }
                               rentalDays={rentalDays}
                               includedMileage={includedMileage}
                               requestedMileage={requestedMileage}
                               startDateTime={startDate}
                               endDateTime={endDate}
-                              extraTimeFeeAmount={extraTimeFeeInfo.totalFee}
+                              extraTimeFeeAmount={extraTimeFeeAmount}
                             />
                           }
                         />

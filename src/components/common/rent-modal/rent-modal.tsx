@@ -8,7 +8,8 @@ import {
   EXTRA_TIME_FEE_PER_EVENT_RUB,
 } from '@/lib/business-hours-fee';
 import { InputMask } from '@react-input/mask';
-import { getPhoneDigits } from '@/lib/phone-mask';
+import Slider from '@mui/material/Slider';
+import { getPhoneDigits, phoneMaskOnFocus } from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -145,7 +146,10 @@ const RentModal = ({
   const isDateInRange = (date: Date) => {
     if (!startDate || !endDate) return false;
     const current = moment(date);
-    return current.isAfter(moment(startDate), 'day') && current.isBefore(moment(endDate), 'day');
+    return (
+      current.isAfter(moment(startDate), 'day') &&
+      current.isBefore(moment(endDate), 'day')
+    );
   };
 
   const isDateSelected = (date: Date) => {
@@ -490,6 +494,74 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
     );
   };
 
+  const renderMobileTimeSlider = (
+    label: string,
+    value: string,
+    onChange: (next: string) => void
+  ) => {
+    const minutes = clampAndSnapMinutes(parseClockToMinutes(value));
+    const percent =
+      ((minutes - TIME_RANGE_MINUTES) * 100) /
+      (TIME_RANGE_MAX_MINUTES - TIME_RANGE_MINUTES);
+    const safeBadgeLeft = `clamp(36px, ${percent}%, calc(100% - 36px))`;
+
+    return (
+      <div className="time-range-picker">
+        <label className="time-label">{label}</label>
+        <div className="time-range-wrap mobile">
+          <Slider
+            value={minutes}
+            min={TIME_RANGE_MINUTES}
+            max={TIME_RANGE_MAX_MINUTES}
+            step={TIME_RANGE_STEP_MINUTES}
+            onChange={(_, raw) => {
+              const next = Array.isArray(raw) ? raw[0] : raw;
+              onChange(minutesToClock(Number(next)));
+            }}
+            sx={{
+              color: '#df3b33',
+              height: 8,
+              px: 0,
+              touchAction: 'pan-y',
+              '& .MuiSlider-rail': {
+                height: 8,
+                opacity: 1,
+                backgroundColor: '#d9dde2',
+              },
+              '& .MuiSlider-track': {
+                height: 8,
+                border: 'none',
+                backgroundColor: '#df3b33',
+              },
+              '& .MuiSlider-thumb': {
+                width: 22,
+                height: 22,
+                backgroundColor: '#fff',
+                border: '2px solid #df3b33',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+                '&:before': {
+                  boxShadow: 'none',
+                },
+                '&:hover, &.Mui-focusVisible, &.Mui-active': {
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+                },
+              },
+              '& .MuiSlider-valueLabel': {
+                display: 'none',
+              },
+            }}
+          />
+          <span
+            className="time-range-badge mobile"
+            style={{ left: safeBadgeLeft }}
+          >
+            {minutesToClock(minutes)}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   const handleOpenMobileTimeModal = () => {
     setMobileTempStartTime(startTime);
     setMobileTempEndTime(endTime);
@@ -737,14 +809,15 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               disabled={isSubmitting}
             />
             <InputMask
-              mask="+7 (___) ___-__-__"
+              mask="+7 ___-___-__-__"
               replacement={{ _: /\d/ }}
               showMask={false}
               type="tel"
               name="phone"
-              placeholder="+7 (___) ___-__-__"
+              placeholder="+7 ___-___-__-__"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
+              onFocus={() => phoneMaskOnFocus(contactPhone, setContactPhone)}
               inputMode="tel"
               disabled={isSubmitting}
             />
@@ -815,23 +888,9 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
             onClick={(e) => e.stopPropagation()}
           >
             <h3>Выберите время аренды</h3>
-            <div className="field time-field">
-              {renderTimeSlider(
-                'Время начала аренды',
-                mobileTempStartTime,
-                setMobileTempStartTime
-              )}
-            </div>
-            <div className="field time-field">
-              {renderTimeSlider(
-                'Время окончания аренды',
-                mobileTempEndTime,
-                setMobileTempEndTime
-              )}
-            </div>
 
             {showMobileNonBusinessHoursInfo && (
-              <div className="rent-note">
+              <div className="rent-note mb-4">
                 <p>
                   За выдачу/прием автомобиля вне рабочего времени взимается доп.
                   плата
@@ -861,6 +920,21 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
                 )}
               </div>
             )}
+
+            <div className="field time-field">
+              {renderMobileTimeSlider(
+                'Время начала аренды',
+                mobileTempStartTime,
+                setMobileTempStartTime
+              )}
+            </div>
+            <div className="field time-field">
+              {renderMobileTimeSlider(
+                'Время окончания аренды',
+                mobileTempEndTime,
+                setMobileTempEndTime
+              )}
+            </div>
 
             <div className="rent-time-mobile-modal-actions">
               <button

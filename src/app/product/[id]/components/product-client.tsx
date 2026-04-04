@@ -8,6 +8,7 @@ import {
   useRef,
   type ChangeEvent,
   type FormEvent,
+  type ReactNode,
 } from 'react';
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -36,7 +37,7 @@ import {
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
-import { getPhoneDigits } from '@/lib/phone-mask';
+import { getPhoneDigits, phoneMaskOnFocus } from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
 
 type SeasonLike = {
@@ -608,6 +609,11 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const [activeOptionTooltipId, setActiveOptionTooltipId] = useState<
     string | null
   >(null);
+  const [isMobileTooltipViewport, setIsMobileTooltipViewport] = useState(false);
+  const [mobileTooltipModal, setMobileTooltipModal] = useState<{
+    title: string;
+    content: ReactNode;
+  } | null>(null);
   const [carDetails, setCarDetails] = useState<Car | null>(null);
   const [isCarDetailsLoading, setIsCarDetailsLoading] = useState(
     Boolean(car?.id)
@@ -1538,6 +1544,21 @@ ${pricingInfo}
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => {
+      const isMobile = mq.matches;
+      setIsMobileTooltipViewport(isMobile);
+      if (!isMobile) {
+        setMobileTooltipModal(null);
+      }
+    };
+    mq.addEventListener('change', onChange);
+    onChange();
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   return (
     <MainTemplate headerAnimation={false} minHeight={true}>
       <div className="search-in-wrap">
@@ -1833,11 +1854,20 @@ ${pricingInfo}
                                 type="button"
                                 className="inline-flex items-center justify-center"
                                 aria-label={`Информация об опции ${option.name}`}
-                                onClick={() =>
+                                onClick={(e) => {
+                                  if (isMobileTooltipViewport) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMobileTooltipModal({
+                                      title: option.name,
+                                      content: <span>{option.tooltip}</span>,
+                                    });
+                                    return;
+                                  }
                                   setActiveOptionTooltipId((prev) =>
                                     prev === option.id ? null : option.id
-                                  )
-                                }
+                                  );
+                                }}
                               >
                                 <img src="/img/tooltip-icon.svg" alt="" />
                               </button>
@@ -1916,6 +1946,27 @@ ${pricingInfo}
                           type="button"
                           className="sum-row-hint-btn"
                           aria-label="Как посчитана аренда"
+                          onClick={(e) => {
+                            if (!isMobileTooltipViewport) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMobileTooltipModal({
+                              title: 'Как посчитана аренда',
+                              content: showCalculatedLoader ? (
+                                <span>Загрузка расчета...</span>
+                              ) : (
+                                <span>
+                                  Расчёт: {rentalDays} суток ×{' '}
+                                  {getPriceForDays(rentalDays).toLocaleString(
+                                    'ru-RU'
+                                  )}{' '}
+                                  ₽/сутки
+                                  <br />
+                                  Тариф: {getTariffLabelForDays(rentalDays)}
+                                </span>
+                              ),
+                            });
+                          }}
                         >
                           <img src="/img/tooltip-icon.svg" alt="" />
                         </button>
@@ -2012,6 +2063,36 @@ ${pricingInfo}
                           type="button"
                           className="sum-row-hint-btn"
                           aria-label="Как посчитана опция"
+                          onClick={(e) => {
+                            if (!isMobileTooltipViewport) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMobileTooltipModal({
+                              title: `Как посчитана опция: ${option.name}`,
+                              content:
+                                option.billing === 'perDay' &&
+                                option.pricePerDay != null ? (
+                                  rentalDays > 0 ? (
+                                    <span>
+                                      Расчёт: {rentalDays} суток ×{' '}
+                                      {option.pricePerDay.toLocaleString(
+                                        'ru-RU'
+                                      )}{' '}
+                                      ₽/сутки ={' '}
+                                      {option.price.toLocaleString('ru-RU')} ₽
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      Ставка:{' '}
+                                      {option.pricePerDay.toLocaleString('ru-RU')}{' '}
+                                      ₽/сутки (итог после выбора дат)
+                                    </span>
+                                  )
+                                ) : (
+                                  <span>Фиксированная сумма за период аренды</span>
+                                ),
+                            });
+                          }}
                         >
                           <img src="/img/tooltip-icon.svg" alt="" />
                         </button>
@@ -2083,13 +2164,14 @@ ${pricingInfo}
                   disabled={isSubmitting}
                 />
                 <InputMask
-                  mask="+7 (___) ___-__-__"
+                  mask="+7 ___ ___-__-__"
                   replacement={{ _: /\d/ }}
                   showMask={false}
                   type="tel"
-                  placeholder="+7 (___) ___-__-__"
+                  placeholder="+7 ___-___-__-__"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  onFocus={() => phoneMaskOnFocus(phone, setPhone)}
                   inputMode="tel"
                   disabled={isSubmitting}
                 />
@@ -2268,6 +2350,35 @@ ${pricingInfo}
           )}
         </div>
       </div>
+
+      {mobileTooltipModal && (
+        <div
+          className="fixed inset-0 z-3100 bg-black/60 flex items-end sm:items-center justify-center p-3"
+          onClick={() => setMobileTooltipModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-4 sm:p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-[16px] font-semibold text-[#202020] leading-5">
+                {mobileTooltipModal.title}
+              </h3>
+              <button
+                type="button"
+                aria-label="Закрыть подсказку"
+                className="h-8 w-8 shrink-0 rounded-full border border-gray-200 text-gray-600"
+                onClick={() => setMobileTooltipModal(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-3 text-[14px] leading-5 text-[#3d3d3d]">
+              {mobileTooltipModal.content}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Gallery Modal (full screen) */}
       {isImageModalOpen && carImages.length > 0 && (

@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { InputMask } from '@react-input/mask';
-import { getPhoneDigits } from '@/lib/phone-mask';
+import { getPhoneDigits, phoneMaskOnFocus } from '@/lib/phone-mask';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -102,14 +102,19 @@ function Footer({ minHeight = false }: FooterProps) {
               required
             />
             <InputMask
-              mask="+7 (___) ___-__-__"
+              mask="+7 ___-___-__-__"
               replacement={{ _: /\d/ }}
               showMask={false}
               type="tel"
               name="phone"
-              placeholder="+7 (___) ___-__-__"
+              placeholder="+7 ___-___-__-__"
               value={formData.phone}
               onChange={handleChange}
+              onFocus={() =>
+                phoneMaskOnFocus(formData.phone, (value) =>
+                  setFormData((prev) => ({ ...prev, phone: value }))
+                )
+              }
               inputMode="tel"
               required
             />

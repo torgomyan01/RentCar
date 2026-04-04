@@ -1,4 +1,4 @@
-const PHONE_PREFIX = '+7 (';
+const PHONE_PREFIX = '+7 ';
 
 export function formatPhoneMask(rawValue: string): string {
   const digitsOnly = String(rawValue || '').replace(/\D/g, '');
