@@ -2106,7 +2106,7 @@ ${pricingInfo}
                 {extraTimeFee > 0 && (
                   <div className="sum-row">
                     <span>
-                    нераб. время ({extraTimeFeeInfo.eventsCount} ×{' '}
+                    Нераб. время ({extraTimeFeeInfo.eventsCount} ×{' '}
                       {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)
                     </span>
                     <b>+ {extraTimeFee.toLocaleString('ru-RU')} ₽</b>
