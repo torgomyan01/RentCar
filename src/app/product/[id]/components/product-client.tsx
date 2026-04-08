@@ -37,7 +37,13 @@ import {
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
-import { getPhoneDigits, phoneMaskOnFocus } from '@/lib/phone-mask';
+import {
+  getPhoneDigits,
+  phoneMaskOnBlur,
+  phoneMaskForceCaretToEnd,
+  phoneMaskOnFocus,
+  phoneMaskOnKeyDown,
+} from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
 
 type SeasonLike = {
@@ -601,6 +607,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const [imageModalIndex, setImageModalIndex] = useState(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error' | null;
@@ -2165,15 +2172,28 @@ ${pricingInfo}
                   disabled={isSubmitting}
                 />
                 <InputMask
-                  mask="+7 ___ ___-__-__"
+                  mask="+7 ___-___-__-__"
                   replacement={{ _: /\d/ }}
-                  showMask={false}
+                  showMask={true}
                   type="tel"
                   placeholder="+7 ___-___-__-__"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  onFocus={(e) => phoneMaskOnFocus(phone, setPhone, e.currentTarget)}
-                  onClick={(e) => phoneMaskOnFocus(phone, setPhone, e.currentTarget)}
+                  onKeyDown={(e) => phoneMaskOnKeyDown(e, phone, setPhone)}
+                  onMouseDown={(e) => {
+                    // Ensure mask placeholders are visible on first click
+                    setIsPhoneFocused(true);
+                    phoneMaskOnFocus(phone, setPhone, e.currentTarget);
+                    phoneMaskForceCaretToEnd(e.currentTarget);
+                  }}
+                  onBlur={() => {
+                    setIsPhoneFocused(false);
+                    phoneMaskOnBlur(phone, setPhone);
+                  }}
+                  onFocus={(e) => {
+                    setIsPhoneFocused(true);
+                    phoneMaskOnFocus(phone, setPhone, e.currentTarget);
+                  }}
                   inputMode="tel"
                   disabled={isSubmitting}
                 />

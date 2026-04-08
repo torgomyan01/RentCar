@@ -1,13 +1,42 @@
 const PHONE_PREFIX = '+7 ';
+const CARET_MIN_POS = 3; // "+7 "
 
 function moveCaretAfterPrefix(input: HTMLInputElement | null | undefined) {
   if (!input) return;
-  const pos = PHONE_PREFIX.length;
+  const pos = CARET_MIN_POS;
   try {
     // Ensure caret is always after "+7 "
     input.setSelectionRange(pos, pos);
   } catch {
     // ignore (some browsers/input types may throw)
+  }
+}
+
+function moveCaretToSafeEnd(input: HTMLInputElement | null | undefined) {
+  if (!input) return;
+  const valueLen = String(input.value || '').length;
+  const pos = Math.max(CARET_MIN_POS, valueLen);
+  try {
+    input.setSelectionRange(pos, pos);
+  } catch {
+    // ignore
+  }
+}
+
+function moveCaretAfterPrefixWithRetry(
+  input: HTMLInputElement | null | undefined,
+  attemptsLeft: number
+) {
+  if (!input) return;
+  moveCaretToSafeEnd(input);
+  if (attemptsLeft <= 0) return;
+
+  // If mask hasn't been applied yet (first click before React rerender),
+  // retry on next frame to ensure caret ends up after "+7 ".
+  if (!String(input.value || '').startsWith('+7')) {
+    requestAnimationFrame(() =>
+      moveCaretAfterPrefixWithRetry(input, attemptsLeft - 1)
+    );
   }
 }
 
@@ -48,13 +77,20 @@ export function phoneMaskOnFocus(
   setter: (v: string) => void,
   inputEl?: HTMLInputElement | null
 ): void {
+  // On focus we always initialize prefix in controlled value.
   if (!currentValue || currentValue.trim() === '') {
     setter(PHONE_PREFIX);
   }
 
-  // `InputMask` updates value async; set caret on next frame.
+  // `InputMask` updates value async; apply caret after updates.
   queueMicrotask(() => {
-    requestAnimationFrame(() => moveCaretAfterPrefix(inputEl));
+    requestAnimationFrame(() => moveCaretAfterPrefixWithRetry(inputEl, 2));
+  });
+}
+
+export function phoneMaskForceCaretToEnd(inputEl?: HTMLInputElement | null) {
+  queueMicrotask(() => {
+    requestAnimationFrame(() => moveCaretAfterPrefixWithRetry(inputEl, 2));
   });
 }
 
@@ -73,6 +109,19 @@ export function phoneMaskOnKeyDown(
   currentValue: string,
   setter: (v: string) => void
 ): void {
+  const isSingleChar = e.key.length === 1;
+  const isDigit = /\d/.test(e.key);
+  const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
+  const isEmpty = !currentValue || currentValue.trim() === '';
+
+  // If user starts typing into empty field, initialize deterministically:
+  // set "+7 " and first digit in one step.
+  if (isEmpty && isSingleChar && isDigit && !hasModifier) {
+    e.preventDefault();
+    setter(`${PHONE_PREFIX}${e.key}`);
+    return;
+  }
+
   if (e.key === 'Backspace') {
     const stripped = currentValue.replace(/\D/g, '');
     if (!stripped || stripped === '7') {
