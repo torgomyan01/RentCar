@@ -1,5 +1,16 @@
 const PHONE_PREFIX = '+7 ';
 
+function moveCaretAfterPrefix(input: HTMLInputElement | null | undefined) {
+  if (!input) return;
+  const pos = PHONE_PREFIX.length;
+  try {
+    // Ensure caret is always after "+7 "
+    input.setSelectionRange(pos, pos);
+  } catch {
+    // ignore (some browsers/input types may throw)
+  }
+}
+
 export function formatPhoneMask(rawValue: string): string {
   const digitsOnly = String(rawValue || '').replace(/\D/g, '');
   if (!digitsOnly) return '';
@@ -34,11 +45,17 @@ export function formatPhoneMask(rawValue: string): string {
 
 export function phoneMaskOnFocus(
   currentValue: string,
-  setter: (v: string) => void
+  setter: (v: string) => void,
+  inputEl?: HTMLInputElement | null
 ): void {
   if (!currentValue || currentValue.trim() === '') {
     setter(PHONE_PREFIX);
   }
+
+  // `InputMask` updates value async; set caret on next frame.
+  queueMicrotask(() => {
+    requestAnimationFrame(() => moveCaretAfterPrefix(inputEl));
+  });
 }
 
 export function phoneMaskOnBlur(

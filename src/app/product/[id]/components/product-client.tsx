@@ -1764,6 +1764,7 @@ ${pricingInfo}
               </div>
             )}
             {!showCalculatedLoader &&
+              fromPage !== 'search' &&
               shouldShowTariffWarning &&
               tariffValidUntilText && (
                 <div className="info-texts">
@@ -2105,7 +2106,7 @@ ${pricingInfo}
                 {extraTimeFee > 0 && (
                   <div className="sum-row">
                     <span>
-                      Нерабоч. время ({extraTimeFeeInfo.eventsCount} ×{' '}
+                    нераб. время ({extraTimeFeeInfo.eventsCount} ×{' '}
                       {EXTRA_TIME_FEE_PER_EVENT_RUB.toLocaleString('ru-RU')} ₽)
                     </span>
                     <b>+ {extraTimeFee.toLocaleString('ru-RU')} ₽</b>
@@ -2171,7 +2172,8 @@ ${pricingInfo}
                   placeholder="+7 ___-___-__-__"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  onFocus={() => phoneMaskOnFocus(phone, setPhone)}
+                  onFocus={(e) => phoneMaskOnFocus(phone, setPhone, e.currentTarget)}
+                  onClick={(e) => phoneMaskOnFocus(phone, setPhone, e.currentTarget)}
                   inputMode="tel"
                   disabled={isSubmitting}
                 />

@@ -110,9 +110,18 @@ function Footer({ minHeight = false }: FooterProps) {
               placeholder="+7 ___-___-__-__"
               value={formData.phone}
               onChange={handleChange}
-              onFocus={() =>
-                phoneMaskOnFocus(formData.phone, (value) =>
-                  setFormData((prev) => ({ ...prev, phone: value }))
+              onFocus={(e) =>
+                phoneMaskOnFocus(
+                  formData.phone,
+                  (value) => setFormData((prev) => ({ ...prev, phone: value })),
+                  e.currentTarget
+                )
+              }
+              onClick={(e) =>
+                phoneMaskOnFocus(
+                  formData.phone,
+                  (value) => setFormData((prev) => ({ ...prev, phone: value })),
+                  e.currentTarget
                 )
               }
               inputMode="tel"

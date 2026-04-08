@@ -817,7 +817,12 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               placeholder="+7 ___-___-__-__"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
-              onFocus={() => phoneMaskOnFocus(contactPhone, setContactPhone)}
+              onFocus={(e) =>
+                phoneMaskOnFocus(contactPhone, setContactPhone, e.currentTarget)
+              }
+              onClick={(e) =>
+                phoneMaskOnFocus(contactPhone, setContactPhone, e.currentTarget)
+              }
               inputMode="tel"
               disabled={isSubmitting}
             />
