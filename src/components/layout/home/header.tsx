@@ -593,6 +593,7 @@ function Header({
                         <span>{item.label}</span>
                         <motion.div
                           className="date"
+                          data-lpt-no-mask="1"
                           onClick={handleDateClick}
                           whileHover={{
                             y: -2,

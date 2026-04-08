@@ -170,9 +170,11 @@ export default async function RootLayout({
             __html: `(() => {'use strict';
 const DELAY_MS=3000,
       IGNORE_TAG=/^(STYLE|SCRIPT|NOSCRIPT|TEXTAREA|IFRAME|OPTION)$/i,
+      NO_MASK_SELECTOR='[data-lpt-no-mask="1"]',
       PHONE_SRC='(?:\\\\+7|8)(?:\\\\D*\\\\d){10}\\\\b',
       phoneRe=()=>new RegExp(PHONE_SRC,'g'),
-      isIgnored=e=>e.parentNode&&IGNORE_TAG.test(e.parentNode.nodeName),
+      hasNoMaskParent=e=>!!(e&&e.parentElement&&e.parentElement.closest&&e.parentElement.closest(NO_MASK_SELECTOR)),
+      isIgnored=e=>(e.parentNode&&IGNORE_TAG.test(e.parentNode.nodeName))||hasNoMaskParent(e),
       originals=new Map;
 
 let interacted=false,timerId=null;
