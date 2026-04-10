@@ -393,6 +393,12 @@ function getNextSeasonStartDate(
   return candidate;
 }
 
+function getPreviousDay(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
 function resolvePricingFromAdminTariffs(
   tariffs: GroupTariffPricing[],
   startDateStr: string | null
@@ -449,7 +455,9 @@ function resolvePricingFromAdminTariffs(
 
   return {
     prices: normalizePrices(defaultTariff?.prices),
-    tariffWarningDate: nearestSeasonStart,
+    tariffWarningDate: nearestSeasonStart
+      ? getPreviousDay(nearestSeasonStart)
+      : null,
     shouldShowTariffWarning: hasSeasonalTariffs,
   };
 }

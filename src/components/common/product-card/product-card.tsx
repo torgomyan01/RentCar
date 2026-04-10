@@ -416,7 +416,7 @@ function ProductCard({
   }, [groupKey, fetchGroupMedia]);
 
   useEffect(() => {
-    if (!groupKey || !startDate || !endDate) {
+    if (!groupKey) {
       setGroupTariffs([]);
       return;
     }
@@ -451,17 +451,26 @@ function ProductCard({
     return () => {
       cancelled = true;
     };
-  }, [groupKey, startDate, endDate]);
+  }, [groupKey]);
 
-  const seasonalDailyPriceFromQuery = useMemo(() => {
-    if (!startDate || !endDate || !groupKey || groupTariffs.length === 0) {
+  const seasonalDailyPrice = useMemo(() => {
+    if (!groupKey || groupTariffs.length === 0) {
       return null;
     }
-    const rentalDays = calculateRentalDaysFromQuery(startDate, endDate);
-    if (rentalDays <= 0) return null;
 
-    const pricesByDate = resolveTariffPricesForDate(groupTariffs, startDate);
-    const price = getPriceForDaysByBuckets(pricesByDate, rentalDays);
+    // If query dates are missing, use today's date and 1 day bucket.
+    const referenceStartDate =
+      startDate ||
+      `${new Date().getDate().toString().padStart(2, '0')}-${(new Date().getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}-${new Date().getFullYear()} 09:00`;
+    const rentalDays = startDate && endDate
+      ? calculateRentalDaysFromQuery(startDate, endDate)
+      : 32; // No selected period: show minimal (32+ days) tariff bucket
+    const safeRentalDays = rentalDays > 0 ? rentalDays : 32;
+
+    const pricesByDate = resolveTariffPricesForDate(groupTariffs, referenceStartDate);
+    const price = getPriceForDaysByBuckets(pricesByDate, safeRentalDays);
     return Number.isFinite(price) && price > 0 ? price : null;
   }, [groupTariffs, groupKey, startDate, endDate]);
 
@@ -473,8 +482,8 @@ function ProductCard({
     ) {
       return resolvedDailyPrice;
     }
-    return seasonalDailyPriceFromQuery;
-  }, [resolvedDailyPrice, seasonalDailyPriceFromQuery]);
+    return seasonalDailyPrice;
+  }, [resolvedDailyPrice, seasonalDailyPrice]);
 
   const productUrl = useMemo(() => {
     const startDate = searchParams.get('start_date');

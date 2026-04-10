@@ -22,6 +22,12 @@ interface CatalogBlockProps {
   initialCars: Car[];
 }
 
+function normalizeCarType(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'минивен') return 'минивэн';
+  return normalized;
+}
+
 function getCarMinPriceValue(car: Car): number {
   const pricesArray = car.prices || car.price;
 
@@ -37,7 +43,8 @@ function getCarMinPriceValue(car: Car): number {
       ) {
         values.push(
           ...priceItem.values.filter(
-            (v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
+            (v): v is number =>
+              typeof v === 'number' && Number.isFinite(v) && v > 0
           )
         );
       } else if (
@@ -54,7 +61,11 @@ function getCarMinPriceValue(car: Car): number {
     }
   }
 
-  if (typeof car.price === 'number' && Number.isFinite(car.price) && car.price > 0) {
+  if (
+    typeof car.price === 'number' &&
+    Number.isFinite(car.price) &&
+    car.price > 0
+  ) {
     return car.price;
   }
 
@@ -77,7 +88,7 @@ function CatalogBlock({ initialCars }: CatalogBlockProps) {
     const types = new Set<string>();
     carsData.forEach((car) => {
       if (car.car_type && car.car_type.trim()) {
-        types.add(car.car_type.trim());
+        types.add(normalizeCarType(car.car_type));
       }
     });
     return Array.from(types).sort();
@@ -130,7 +141,9 @@ function CatalogBlock({ initialCars }: CatalogBlockProps) {
   // Filter cars by active tabs (using car_type)
   const filteredCars = activeTabs.includes('all')
     ? cars
-    : cars.filter((car) => car.car_type && activeTabs.includes(car.car_type));
+    : cars.filter(
+        (car) => car.car_type && activeTabs.includes(normalizeCarType(car.car_type))
+      );
 
   const groupedCars = useMemo(() => {
     const grouped = groupCarsByModel(filteredCars);
@@ -152,13 +165,13 @@ function CatalogBlock({ initialCars }: CatalogBlockProps) {
         />
         <h1>каталог автомобилей</h1>
         <p className="subtitle">
-          Мы стремимся сделать аренду автомобиля максимально комфортной и удобной
-          для Вас, позволяя выбрать оптимальный срок аренды и обширную географию
-          эксплуатации. Автомобиль становится Вашим личным пространством, где
-          можете комфортно разместиться и наслаждаться приватностью в пути.
-          Независимо от того, нужен Вам автомобиль на короткий срок или на более
-          длительное время, мы готовы предоставить надежное транспортное
-          средство по доступной цене.
+          Мы стремимся сделать аренду автомобиля максимально комфортной и
+          удобной для Вас, позволяя выбрать оптимальный срок аренды и обширную
+          географию эксплуатации. Автомобиль становится Вашим личным
+          пространством, где можете комфортно разместиться и наслаждаться
+          приватностью в пути. Независимо от того, нужен Вам автомобиль на
+          короткий срок или на более длительное время, мы готовы предоставить
+          надежное транспортное средство по доступной цене.
         </p>
         <div className="found">
           <h3>найдено автомобилей</h3>
