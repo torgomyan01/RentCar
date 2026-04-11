@@ -17,8 +17,8 @@ import { RentModalProvider } from '@/contexts/rent-modal-context';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import CookieConsent from '@/components/common/cookie-consent/cookie-consent';
+import YandexMetrika from '@/components/common/yandex-metrika/yandex-metrika';
 import Script from 'next/script';
-import { YMInitializer } from 'react-yandex-metrika';
 
 const SITE_NAME = 'Нам по пути';
 const DEFAULT_DESCRIPTION =
@@ -325,7 +325,7 @@ window.addEventListener('load',function(){
           <CookieConsent />
         </SesProviders>
 
-        <YMInitializer accounts={[108488174]} />
+        <YandexMetrika />
       </body>
     </html>
   );
