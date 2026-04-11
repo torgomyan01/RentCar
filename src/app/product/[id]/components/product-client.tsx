@@ -45,6 +45,7 @@ import {
   phoneMaskOnKeyDown,
 } from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
+import { sendTelegramMessageFromClient } from '@/lib/telegram-client';
 
 type SeasonLike = {
   id?: number | string | null;
@@ -1363,22 +1364,9 @@ ${rentalInfo}
 ${pricingInfo}
       `.trim();
 
-      // Send to Telegram
-      const response = await fetch('/api/telegram/send-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          phone,
-          message,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      // Send to Telegram directly from frontend
+      const result = await sendTelegramMessageFromClient(message);
+      if (result.success) {
         setSubmitStatus({
           type: 'success',
           message:
@@ -1391,7 +1379,7 @@ ${pricingInfo}
         setSubmitStatus({
           type: 'error',
           message:
-            data.error || 'Ошибка при отправке заявки. Попробуйте еще раз.',
+            result.errors[0] || 'Ошибка при отправке заявки. Попробуйте еще раз.',
         });
       }
     } catch (error: any) {
