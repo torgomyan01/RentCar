@@ -18,6 +18,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import CookieConsent from '@/components/common/cookie-consent/cookie-consent';
 import Script from 'next/script';
+import { YMInitializer } from 'react-yandex-metrika';
 
 const SITE_NAME = 'Нам по пути';
 const DEFAULT_DESCRIPTION =
@@ -323,6 +324,8 @@ window.addEventListener('load',function(){
           </Providers>
           <CookieConsent />
         </SesProviders>
+
+        <YMInitializer accounts={[108488174]} />
       </body>
     </html>
   );
