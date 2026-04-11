@@ -16,7 +16,6 @@ import {
   phoneMaskOnFocus,
   phoneMaskOnKeyDown,
 } from '@/lib/phone-mask';
-import { sendTelegramMessageFromClient } from '@/lib/telegram-client';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -269,8 +268,13 @@ ${carBlock ? `${carBlock}\n` : ''}
 • Телефон: ${phone}
       `.trim();
       try {
-        const result = await sendTelegramMessageFromClient(message);
-        if (result.success) {
+        const response = await fetch('/api/telegram/send-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, message }),
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
           setSubmitStatus({
             type: 'success',
             message: 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.',
@@ -279,8 +283,7 @@ ${carBlock ? `${carBlock}\n` : ''}
         } else {
           setSubmitStatus({
             type: 'error',
-            message:
-              result.errors[0] || 'Ошибка при отправке. Попробуйте ещё раз.',
+            message: data.error || 'Ошибка при отправке. Попробуйте ещё раз.',
           });
         }
       } catch (err: any) {
@@ -358,8 +361,14 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
       `.trim();
 
       try {
-        const result = await sendTelegramMessageFromClient(message);
-        if (result.success) {
+        const response = await fetch('/api/telegram/send-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, message }),
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
           setSubmitStatus({
             type: 'success',
             message: 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.',
@@ -368,8 +377,7 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
         } else {
           setSubmitStatus({
             type: 'error',
-            message:
-              result.errors[0] || 'Ошибка при отправке. Попробуйте ещё раз.',
+            message: data.error || 'Ошибка при отправке. Попробуйте ещё раз.',
           });
         }
       } catch (err: any) {

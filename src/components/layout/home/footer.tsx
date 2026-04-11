@@ -11,7 +11,6 @@ import {
   phoneMaskOnFocus,
   phoneMaskOnKeyDown,
 } from '@/lib/phone-mask';
-import { sendTelegramMessageFromClient } from '@/lib/telegram-client';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -43,17 +42,22 @@ function Footer({ minHeight = false }: FooterProps) {
     setSubmitStatus({ type: null, message: '' });
 
     try {
-      const text = `
-🆕 *Новая заявка на подбор автомобиля*
+      const response = await fetch('/api/telegram/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          message: 'Заявка с главной страницы',
+        }),
+      });
 
-👤 *Имя:* ${formData.name}
-📞 *Телефон:* ${formData.phone}
-💬 *Сообщение:* Заявка с главной страницы
-      `.trim();
+      const data = await response.json();
 
-      const result = await sendTelegramMessageFromClient(text);
-      if (!result.success) {
-        throw new Error(result.errors[0] || 'Ошибка при отправке заявки');
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка при отправке заявки');
       }
 
       setSubmitStatus({

@@ -451,15 +451,15 @@ function Header({
               >
                 <img src="/img/soc-icon2.svg" alt="WhatsApp" />
               </a>
-                {!contactLoading && (
-                  <a
-                    href={`tel: ${settings.phoneDisplay}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <img src="/img/soc-icon3.svg" alt="Telegram" />
-                  </a>
-                )}
+              {!contactLoading && (
+                <a
+                  href={`tel: ${settings.phoneDisplay}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img src="/img/soc-icon3.svg" alt="Telegram" />
+                </a>
+              )}
             </motion.div>
             <motion.button
               type="button"
