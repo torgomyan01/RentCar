@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { username, email, password, role, firstName, lastName } = body;
+    const allowedRoles = new Set(['user', 'manager', 'admin']);
 
     // Validation
     if (!username || !email || !password) {
@@ -26,6 +27,13 @@ export async function POST(request: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    if (role && !allowedRoles.has(String(role))) {
+      return NextResponse.json(
+        { error: 'Invalid role. Allowed: user, manager, admin' },
         { status: 400 }
       );
     }

@@ -85,9 +85,11 @@ export const authOptions: NextAuthOptions = {
             hasPassword: !!user.password,
           });
 
-          // Check if user is admin
-          if (user.role !== 'admin') {
-            console.log('[Auth] User is not admin:', {
+          const normalizedRole = String(user.role || '').trim().toLowerCase();
+
+          // Allow only staff roles for admin panel.
+          if (!['admin', 'manager'].includes(normalizedRole)) {
+            console.log('[Auth] User has no admin-panel access:', {
               username,
               role: user.role,
             });
@@ -115,8 +117,8 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             name: user.username,
             email: user.email,
-            role: user.role,
-            type: 'admin',
+            role: normalizedRole,
+            type: 'staff',
           } as any;
         } catch (error: any) {
           console.error('[Auth] Error during authorization:', error);
@@ -132,15 +134,20 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Handle admin authentication
+      const normalizedUserRole = String((user as any)?.role || '')
+        .trim()
+        .toLowerCase();
+
+      // Handle admin-panel staff authentication
       if (
         user &&
-        ((user as any).type === 'admin' || (user as any).role === 'admin')
+        ((user as any).type === 'staff' ||
+          ['admin', 'manager'].includes(normalizedUserRole))
       ) {
         token.sub = (user as any).id ?? 'admin';
         token.email = (user as any).email;
-        (token as any).role = 'admin';
-        (token as any).type = 'admin';
+        (token as any).role = normalizedUserRole;
+        (token as any).type = 'staff';
         (token as any).username = (user as any).name;
       }
       return token;
@@ -148,11 +155,11 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        // Handle admin session
+        // Handle admin-panel staff session
         (session.user as any).id = token.sub;
         (session.user as any).email = token.email;
-        (session.user as any).role = 'admin';
-        (session.user as any).type = 'admin';
+        (session.user as any).role = (token as any).role;
+        (session.user as any).type = 'staff';
         (session.user as any).username = (token as any).username;
         (session.user as any).name = (token as any).username || token.email;
       }

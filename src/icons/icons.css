@@ -218,6 +218,10 @@
   content: '\f047';
 }
 
+.fa-table-columns:before {
+  content: '\f0db';
+}
+
 /*---------------------------------*/
 
 @font-face {

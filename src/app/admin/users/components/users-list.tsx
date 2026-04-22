@@ -12,6 +12,34 @@ interface User {
   createdAt: string;
 }
 
+function getRoleView(role: string): {
+  label: string;
+  icon: string;
+  className: string;
+} {
+  if (role === 'admin') {
+    return {
+      label: 'Администратор',
+      icon: 'fa-shield-halved',
+      className: 'bg-red-100 text-red-800 border border-red-200',
+    };
+  }
+
+  if (role === 'manager') {
+    return {
+      label: 'Менеджер',
+      icon: 'fa-briefcase',
+      className: 'bg-blue-100 text-blue-800 border border-blue-200',
+    };
+  }
+
+  return {
+    label: 'Пользователь',
+    icon: 'fa-user',
+    className: 'bg-green-100 text-green-800 border border-green-200',
+  };
+}
+
 export default function UsersList() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +129,9 @@ export default function UsersList() {
           </tr>
         </thead>
         <tbody>
-          {users.map((user, index) => (
+          {users.map((user, index) => {
+            const roleView = getRoleView(user.role);
+            return (
             <tr
               key={user.id}
               className={`border-b border-gray-100 transition-colors hover:bg-gray-50 ${
@@ -135,18 +165,10 @@ export default function UsersList() {
               <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{user.email}</td>
               <td className="p-2 sm:p-4 text-xs sm:text-sm">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                    user.role === 'admin'
-                      ? 'bg-red-100 text-red-800 border border-red-200'
-                      : 'bg-green-100 text-green-800 border border-green-200'
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${roleView.className}`}
                 >
-                  <i
-                    className={`fas ${
-                      user.role === 'admin' ? 'fa-shield-halved' : 'fa-user'
-                    }`}
-                  ></i>
-                  {user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                  <i className={`fas ${roleView.icon}`}></i>
+                  {roleView.label}
                 </span>
               </td>
               <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">
@@ -159,7 +181,8 @@ export default function UsersList() {
                 })}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

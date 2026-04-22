@@ -9,7 +9,7 @@ interface FormData {
   email: string;
   password: string;
   confirmPassword: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'manager' | 'admin';
   firstName?: string;
   lastName?: string;
 }
@@ -259,6 +259,7 @@ export default function CreateUserForm() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 bg-white appearance-none cursor-pointer"
             >
               <option value="user">Пользователь</option>
+              <option value="manager">Менеджер</option>
               <option value="admin">Администратор</option>
             </select>
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
@@ -34,7 +34,11 @@ export default function AdminLoginPage() {
         console.error('[Login] SignIn error:', result.error);
         setError('Неверный логин или пароль. Проверьте консоль для деталей.');
       } else if (result?.ok) {
-        router.push('/admin');
+        const session = await getSession();
+        const role = String((session?.user as any)?.role || '')
+          .trim()
+          .toLowerCase();
+        router.push(role === 'manager' ? '/day-rates' : '/admin');
         router.refresh();
       } else {
         setError('Неожиданная ошибка при входе');

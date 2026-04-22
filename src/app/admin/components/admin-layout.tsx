@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 
 const SIDEBAR_WIDE = 260;
 const SIDEBAR_NARROW = 80;
@@ -12,10 +12,16 @@ const MOBILE_BREAKPOINT = 768;
 interface AdminLayoutProps {
   children: React.ReactNode;
   username?: string;
+  role?: string;
 }
 
-export default function AdminLayout({ children, username }: AdminLayoutProps) {
+export default function AdminLayout({
+  children,
+  username,
+  role,
+}: AdminLayoutProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
@@ -66,6 +72,11 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
   const menuItems = [
     { label: 'Dashboard', href: '/admin', icon: 'fa-chart-line' },
     { label: 'Автомобили', href: '/admin/cars', icon: 'fa-car' },
+    {
+      label: 'Суточные тарифы',
+      href: '/day-rates',
+      icon: 'fa-table-columns',
+    },
     { label: 'Главная: авто', href: '/admin/home-cars', icon: 'fa-house' },
     { label: 'Telegram', href: '/admin/telegram', icon: 'fa-paper-plane' },
     { label: 'Настройки', href: '/admin/settings', icon: 'fa-gear' },
@@ -81,6 +92,16 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
       icon: 'fa-book',
     },
   ];
+  const sessionRole = String((session?.user as any)?.role || '')
+    .trim()
+    .toLowerCase();
+  const normalizedRole = String(role || sessionRole)
+    .trim()
+    .toLowerCase();
+  const visibleMenuItems =
+    normalizedRole === 'admin'
+      ? menuItems
+      : menuItems.filter((item) => item.href === '/day-rates');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col md:flex-row">
@@ -175,7 +196,7 @@ export default function AdminLayout({ children, username }: AdminLayoutProps) {
         </div>
 
         <nav className="py-4 flex-1 overflow-y-auto overscroll-contain">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link

@@ -8,9 +8,16 @@ import { getAllCarsFull } from '@/app/actions/cars';
 
 export default async function AdminDashboardPage() {
   const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role || '')
+    .trim()
+    .toLowerCase();
 
-  if (!session || (session.user as any)?.role !== 'admin') {
+  if (!session || !['admin', 'manager'].includes(String(role || ''))) {
     redirect('/admin/login');
+  }
+
+  if (role === 'manager') {
+    redirect('/day-rates');
   }
 
   // Аналитика: БД + автомобили из RentProg API
