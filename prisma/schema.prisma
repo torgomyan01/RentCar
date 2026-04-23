@@ -145,3 +145,19 @@ model CarGroupTariffPrice {
   @@index([bucketIndex])
   @@map("car_group_tariff_prices")
 }
+
+// Incoming customer requests saved from site forms (Telegram replaced)
+model LeadRequest {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  message   String?  @db.Text
+  source    String?  @default("site")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([isRead, createdAt])
+  @@map("lead_requests")
+}

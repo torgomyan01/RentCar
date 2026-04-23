@@ -21,20 +21,17 @@ export default async function AdminDashboardPage() {
   }
 
   // Аналитика: БД + автомобили из RentProg API
-  const [totalUsers, adminUsers, totalChats, activeChats, totalReviews, cars] =
+  const [totalUsers, adminUsers, totalRequests, unreadRequests, totalReviews, cars] =
     await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { role: 'admin' } }),
-      prisma.telegramChat.count(),
-      prisma.telegramChat.count({ where: { isActive: true } }),
+      (prisma as any).leadRequest.count().catch(() => 0),
+      (prisma as any).leadRequest.count({ where: { isRead: false } }).catch(() => 0),
       prisma.review.count().catch(() => 0),
       getAllCarsFull().catch(() => []),
     ]);
 
   const carsCount = cars.length;
-  // Պատվերներ/заявки — в БД пока нет модели, показываем — (можно позже добавить таблицу заявок)
-  const ordersCount: number | null = null;
-
   const stats = [
     {
       title: 'Автомобили',
@@ -53,12 +50,12 @@ export default async function AdminDashboardPage() {
       description: `Админов: ${adminUsers}`,
     },
     {
-      title: 'Telegram чаты',
-      value: String(totalChats),
-      icon: 'fa-paper-plane',
+      title: 'Заявки',
+      value: String(totalRequests),
+      icon: 'fa-inbox',
       gradient: 'from-sky-500 to-blue-600',
-      href: '/admin/telegram',
-      description: `Активных: ${activeChats}`,
+      href: '/admin/requests',
+      description: `Новых: ${unreadRequests}`,
     },
     {
       title: 'Отзывы (локальные)',

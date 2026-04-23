@@ -72,13 +72,13 @@ export default function AdminLayout({
   const menuItems = [
     { label: 'Dashboard', href: '/admin', icon: 'fa-chart-line' },
     { label: 'Автомобили', href: '/admin/cars', icon: 'fa-car' },
+    { label: 'Заявки', href: '/admin/requests', icon: 'fa-inbox' },
     {
       label: 'Суточные тарифы',
       href: '/day-rates',
       icon: 'fa-table-columns',
     },
     { label: 'Главная: авто', href: '/admin/home-cars', icon: 'fa-house' },
-    { label: 'Telegram', href: '/admin/telegram', icon: 'fa-paper-plane' },
     { label: 'Настройки', href: '/admin/settings', icon: 'fa-gear' },
     {
       label: 'Создать пользователя',

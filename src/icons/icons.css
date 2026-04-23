@@ -29,6 +29,10 @@
   content: '\f201';
 }
 
+.fa-inbox:before {
+  content: '\f01c';
+}
+
 .fa-users:before {
   content: '\f0c0';
 }
