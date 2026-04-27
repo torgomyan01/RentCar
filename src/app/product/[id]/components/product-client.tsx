@@ -232,6 +232,10 @@ function getRutubeEmbedUrl(url: string | null | undefined): string | null {
   }
 }
 
+function shouldUseImageOptimizer(src: string): boolean {
+  return Boolean(src) && !src.startsWith('/api/');
+}
+
 // Helper function to get color class name from color string
 function getColorClass(color: string | null | undefined): string {
   if (!color) return '';
@@ -1619,6 +1623,11 @@ ${pricingInfo}
                 >
                   {carImages.map((image, index) => (
                     <SwiperSlide key={index} className="h-[350px] lg:h-[473px]">
+                      {(() => {
+                        const resolvedImageSrc = getServerImageUrl(image);
+                        const optimizeImage = shouldUseImageOptimizer(resolvedImageSrc);
+                        return (
+                          <>
                       {index === 0 && groupVideoLink && (
                         <div
                           className="play"
@@ -1630,14 +1639,18 @@ ${pricingInfo}
                         </div>
                       )}
                       <Image
-                        src={getServerImageUrl(image)}
+                        src={resolvedImageSrc}
                         alt={carName}
                         className="h-[350px] lg:h-[473px] object-cover rounded-[30px] cursor-default min-[768px]:cursor-zoom-in"
                         width={761}
                         height={473}
+                        unoptimized={!optimizeImage}
                         onLoad={handleGalleryImageLoad}
                         onClick={() => openGalleryLightbox(index)}
                       />
+                          </>
+                        );
+                      })()}
                     </SwiperSlide>
                   ))}
                 </Swiper>
@@ -1667,12 +1680,19 @@ ${pricingInfo}
                 >
                   {carImages.map((image, index) => (
                     <SwiperSlide key={index}>
-                      <Image
-                        src={getServerImageUrl(image)}
-                        alt={carName}
-                        width={200}
-                        height={150}
-                      />
+                      {(() => {
+                        const resolvedImageSrc = getServerImageUrl(image);
+                        const optimizeImage = shouldUseImageOptimizer(resolvedImageSrc);
+                        return (
+                          <Image
+                            src={resolvedImageSrc}
+                            alt={carName}
+                            width={200}
+                            height={150}
+                            unoptimized={!optimizeImage}
+                          />
+                        );
+                      })()}
                     </SwiperSlide>
                   ))}
                 </Swiper>
@@ -2464,15 +2484,22 @@ ${pricingInfo}
               >
                 {carImages.map((image, index) => (
                   <SwiperSlide key={index}>
-                    <div className="flex items-center justify-center w-full h-full">
-                      <Image
-                        src={getServerImageUrl(image)}
-                        alt={carName}
-                        width={1400}
-                        height={900}
-                        className="w-full h-auto max-h-[78vh] sm:max-h-[80vh] object-contain rounded-2xl shadow-[0_18px_60px_rgba(0,0,0,0.85)]"
-                      />
-                    </div>
+                    {(() => {
+                      const resolvedImageSrc = getServerImageUrl(image);
+                      const optimizeImage = shouldUseImageOptimizer(resolvedImageSrc);
+                      return (
+                        <div className="flex items-center justify-center w-full h-full">
+                          <Image
+                            src={resolvedImageSrc}
+                            alt={carName}
+                            width={1400}
+                            height={900}
+                            className="w-full h-auto max-h-[78vh] sm:max-h-[80vh] object-contain rounded-2xl shadow-[0_18px_60px_rgba(0,0,0,0.85)]"
+                            unoptimized={!optimizeImage}
+                          />
+                        </div>
+                      );
+                    })()}
                   </SwiperSlide>
                 ))}
               </Swiper>

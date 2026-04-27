@@ -534,6 +534,8 @@ function ProductCard({
 
   // Ցուցադրել միայն բազայում ավելացված նկարները; եթե չկա — դատարկ դաշտ + «Բեռնեք նկարները»
   const hasDbImage = !!groupMediaImage;
+  const dbImageSrc = hasDbImage ? getServerImageUrl(groupMediaImage) : '';
+  const useImageOptimizer = dbImageSrc ? !dbImageSrc.startsWith('/api/') : true;
 
   return (
     <div className="car-item">
@@ -541,11 +543,12 @@ function ProductCard({
         <Link href={productUrl} className="img">
           {hasDbImage ? (
             <Image
-              src={getServerImageUrl(groupMediaImage)}
+              src={dbImageSrc}
               alt={formatCarName(car)}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
+              unoptimized={!useImageOptimizer}
             />
           ) : (
             <div
