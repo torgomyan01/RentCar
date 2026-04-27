@@ -113,6 +113,20 @@ export function phoneMaskOnKeyDown(
   const isDigit = /\d/.test(e.key);
   const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
   const isEmpty = !currentValue || currentValue.trim() === '';
+  const hasOnlyPrefix = String(currentValue || '').trim() === '+7';
+
+  // Ignore first user digit 7/8 (users often type full number with country code).
+  if (
+    (isEmpty || hasOnlyPrefix) &&
+    isSingleChar &&
+    isDigit &&
+    !hasModifier &&
+    (e.key === '7' || e.key === '8')
+  ) {
+    e.preventDefault();
+    setter(PHONE_PREFIX);
+    return;
+  }
 
   // If user starts typing into empty field, initialize deterministically:
   // set "+7 " and first digit in one step.

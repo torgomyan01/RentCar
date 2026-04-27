@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import { SITE_URL } from '@/utils/consts';
 import { useContactSettings } from '@/hooks/use-contact-settings';
@@ -32,6 +32,7 @@ function Header({
   const { settings, loading: contactLoading } = useContactSettings();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { cars, loading, error, lastFetched } = useAppSelector(
     (state) => state.cars
   );
@@ -53,6 +54,40 @@ function Header({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const countRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(countRef, { once: true, margin: '-100px' });
+
+  const parseDateTimeFromQuery = (
+    value: string | null
+  ): { date: Date; time: string } | null => {
+    if (!value) return null;
+    const match = value.match(
+      /^(\d{1,2})-(\d{1,2})-(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/
+    );
+    if (!match) return null;
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const hours = Number(match[4] ?? '9');
+    const minutes = Number(match[5] ?? '00');
+
+    if (
+      !Number.isFinite(day) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(year) ||
+      !Number.isFinite(hours) ||
+      !Number.isFinite(minutes)
+    ) {
+      return null;
+    }
+
+    const date = new Date(year, month - 1, day);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return {
+      date,
+      time: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+    };
+  };
 
   // Փակել մոբայլ մենյուն երբ route-ը փոխվի
   useEffect(() => {
@@ -97,6 +132,23 @@ function Header({
       return () => clearInterval(timer);
     }
   }, [isInView]);
+
+  useEffect(() => {
+    const startFromQuery = parseDateTimeFromQuery(searchParams.get('start_date'));
+    const endFromQuery = parseDateTimeFromQuery(searchParams.get('end_date'));
+    const mileageFromQuery = searchParams.get('mileage');
+
+    if (startFromQuery && endFromQuery) {
+      setStartDate(startFromQuery.date);
+      setStartTime(startFromQuery.time);
+      setEndDate(endFromQuery.date);
+      setEndTime(endFromQuery.time);
+    }
+
+    if (mileageFromQuery !== null) {
+      setMileage(mileageFromQuery);
+    }
+  }, [searchParams]);
 
   const formatDateDisplay = (date: Date | null, time: string) => {
     if (!date) return '';

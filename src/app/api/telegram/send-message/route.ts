@@ -22,10 +22,67 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const activeChats = await prisma.telegramChat.findMany({
+      where: { isActive: true },
+      select: { chatId: true },
+    });
+    const chatIds = activeChats
+      .map((chat) => String(chat.chatId || '').trim())
+      .filter(Boolean);
+
+    // Keep old endpoint and add forwarding to Vercel relay.
+    // If env is absent, use the provided default Vercel host.
+    const relayUrl =
+      process.env.TELEGRAM_VERCEL_RELAY_URL ||
+      'https://rt-car.vercel.app/api/telegram/relay';
+
+    let relayResult: any = null;
+    let relayError: string | null = null;
+
+    if (chatIds.length > 0) {
+      const messageText = String(message || '').trim();
+      const fallbackText = `
+🆕 *Новая заявка*
+
+👤 *Имя:* ${String(name).trim()}
+📞 *Телефон:* ${String(phone).trim()}
+${messageText ? `💬 *Сообщение:* ${messageText}` : ''}
+      `.trim();
+
+      const textToSend = messageText || fallbackText;
+
+      try {
+        const relayResponse = await fetch(relayUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chatIds,
+            message: textToSend,
+            parseMode: 'Markdown',
+          }),
+        });
+        relayResult = await relayResponse.json().catch(() => ({}));
+        if (!relayResponse.ok) {
+          relayError = relayResult?.error || 'Relay request failed';
+        }
+      } catch (error: any) {
+        relayError = error?.message || 'Relay request failed';
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Request saved successfully',
       requestId: saved.id,
+      telegram: relayError
+        ? {
+            success: false,
+            error: relayError,
+          }
+        : relayResult || {
+            success: false,
+            message: 'No active chats found',
+          },
     });
   } catch (error: any) {
     console.error('Error saving lead request:', error);

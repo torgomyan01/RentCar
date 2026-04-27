@@ -156,3 +156,37 @@ Webhook-ը թույլ է տալիս bot-ին ավտոմատ ավելացնել c
 - [Telegram Bot API Documentation](https://core.telegram.org/bots/api)
 - [BotFather Commands](https://core.telegram.org/bots#6-botfather)
 - [Webhook Setup Guide](https://core.telegram.org/bots/api#setwebhook)
+
+---
+
+## Vercel Relay (RU server -> Vercel -> Telegram)
+
+Եթե հիմնական կայքը աշխատում է RU սերվերում, կարող եք ուղարկումը փոխանցել Vercel-ին:
+
+- Նոր endpoint: `POST /api/telegram/relay`
+- Body format:
+
+```json
+{
+  "chatIds": ["123456789", "-1001234567890"],
+  "message": "text to send",
+  "parseMode": "Markdown"
+}
+```
+
+- `parseMode` կարող է լինել `Markdown` կամ `HTML` (default՝ `Markdown`)
+- Relay-ը աշխատում է best-effort սկզբունքով (մեկ chat fail լինի՝ մյուսները շարունակվում են)
+- Response-ում վերադարձվում են `total/successful/failed`
+
+### RU սերվերից forward կարգավորում
+
+`/api/telegram/send-message` endpoint-ը հիմա.
+1) պահպանում է հայտը DB-ում  
+2) DB-ից վերցնում է active `chatId`-ները  
+3) forward է անում Vercel relay endpoint-ին
+
+Կարող եք override անել relay URL-ը `.env`-ով:
+
+```env
+TELEGRAM_VERCEL_RELAY_URL=https://rt-car.vercel.app/api/telegram/relay
+```

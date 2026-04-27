@@ -675,19 +675,39 @@ function ProductCard({
       )}
 
       <div className="buttons gap-[10px]!">
-        <button
-          type="button"
-          className="red-btn text-[14px]!"
-          onClick={(e) => {
-            e.preventDefault();
-            openModal({ car, contactOnly: true });
-          }}
-        >
-          Оставить заявку
-        </button>
-        <Link href={productUrl} className="border-btn">
-          Подробнее
-        </Link>
+        {pathname === '/search' ? (
+          <>
+            <Link href={productUrl} className="red-btn text-[14px]!">
+              Оставить заявку
+            </Link>
+            <button
+              type="button"
+              className="border-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                openModal({ car, contactOnly: true });
+              }}
+            >
+              Нужна консультация
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="red-btn text-[14px]!"
+              onClick={(e) => {
+                e.preventDefault();
+                openModal({ car, contactOnly: true });
+              }}
+            >
+              Оставить заявку
+            </button>
+            <Link href={productUrl} className="border-btn">
+              Подробнее
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
