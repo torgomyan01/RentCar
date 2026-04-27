@@ -3,6 +3,7 @@
 import type { Car, PriceItem } from '@/lib/rentprog-api-server';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRentModal } from '@/contexts/rent-modal-context';
 import { getServerImageUrl } from '@/lib/uploads';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -539,9 +540,12 @@ function ProductCard({
       <div className="img-wrap">
         <Link href={productUrl} className="img">
           {hasDbImage ? (
-            <img
+            <Image
               src={getServerImageUrl(groupMediaImage)}
               alt={formatCarName(car)}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover"
             />
           ) : (
             <div

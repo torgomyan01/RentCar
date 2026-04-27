@@ -1,22 +1,20 @@
 /**
- * Նկարների uploads — URL-ը միշտ սերվերի դոմեն (https://nampoputi.rent),
- * որպեսզի լոկալում և սերվերում նույն հղումով ցուցադրվեն նկարները.
- * Լոկալում էլ հարցումը գնում է սերվերի API-ին (NEXT_PUBLIC_SERVER_URL).
+ * Upload URL helpers.
+ * NOTE: For better performance with next/image we prefer same-origin relative URLs.
  */
-
 const UPLOADS_BASE_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXTAUTH_URL ||
-  'https://nampoputi.rent';
+  process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '';
 
-/** Սերվերի base URL (առանց trailing slash) — uploads-ի հղումների համար */
+/** Base URL (without trailing slash) */
 export function getUploadsBaseUrl(): string {
-  return UPLOADS_BASE_URL.replace(/\/$/, '');
+  return String(UPLOADS_BASE_URL || '').replace(/\/$/, '');
 }
 
 /**
- * Տալիս է նկարի ամբողջ URL — relative path-ի դեպքում սերվերի API (լոկալում էլ նկարը բեռնվի սերվերից).
- * Օգտագործել img src, video src և այլնի համար.
+ * Returns image/video URL.
+ * - Absolute URLs are returned as is.
+ * - Relative URLs are kept same-origin for Next.js optimization.
+ * - Legacy API file URLs are kept untouched for backward compatibility.
  */
 export function getServerImageUrl(
   urlOrPath: string | null | undefined
@@ -24,8 +22,9 @@ export function getServerImageUrl(
   if (!urlOrPath || typeof urlOrPath !== 'string') return '';
   const s = urlOrPath.trim();
   if (s.startsWith('http://') || s.startsWith('https://')) return s;
-  if (s.startsWith('/')) return getUploadsBaseUrl() + s;
-  return getUploadsBaseUrl() + '/' + s;
+  if (s.startsWith('/api/')) return s;
+  if (s.startsWith('/')) return s;
+  return `/${s.replace(/^\/+/, '')}`;
 }
 
 /**
@@ -35,7 +34,9 @@ export function getServerImageUrl(
  */
 export function buildUploadUrl(relativePath: string): string {
   const path = relativePath.replace(/^\/+/, '');
-  return `${getUploadsBaseUrl()}/api/upload/image?path=${encodeURIComponent(path)}`;
+  const base = getUploadsBaseUrl();
+  const localPath = `/api/upload/image?path=${encodeURIComponent(path)}`;
+  return base ? `${base}${localPath}` : localPath;
 }
 
 /** Արմատի uploads պանակ — process.cwd()/uploads */

@@ -75,8 +75,13 @@ export async function POST(
       }
     }
 
-    // Create upload directory in project root/uploads/cars/[groupKey]
-    const uploadDir = join(process.cwd(), 'uploads', 'cars', groupKey);
+    const safeGroupDir =
+      String(groupKey || '')
+        .trim()
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') || 'group';
+
+    // Store media in public/uploads so files are served directly (faster + next/image friendly).
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'cars', safeGroupDir);
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
     }
@@ -96,7 +101,7 @@ export async function POST(
       const extension = file.name.split('.').pop();
       const fileName = `image_${timestamp}_${i}.${extension}`;
       const filePath = join(uploadDir, fileName);
-      const relativePath = `/api/cars/${encodeURIComponent(groupKey)}/media/file?path=${encodeURIComponent(`cars/${groupKey}/${fileName}`)}`;
+      const relativePath = `/uploads/cars/${encodeURIComponent(safeGroupDir)}/${encodeURIComponent(fileName)}`;
 
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
@@ -193,34 +198,28 @@ export async function DELETE(
       return NextResponse.json({ error: 'Media not found' }, { status: 404 });
     }
 
-    // Delete file from filesystem
-    // Extract path from media.filePath (which is now an API route)
-    // If it's an API route, extract the path parameter
-    let actualFilePath = media.filePath;
-    if (media.filePath.includes('/api/admin/cars/')) {
-      // Extract path from query parameter
+    // Resolve both new and legacy locations for backward compatibility.
+    const candidatePaths: string[] = [];
+    if (media.filePath.startsWith('/uploads/')) {
+      const relative = media.filePath.replace(/^\/+/, '');
+      candidatePaths.push(join(process.cwd(), 'public', relative));
+      candidatePaths.push(join(process.cwd(), relative));
+    } else if (
+      media.filePath.includes('/api/admin/cars/') ||
+      media.filePath.includes('/api/cars/')
+    ) {
       const url = new URL(media.filePath, 'http://localhost');
       const pathParam = url.searchParams.get('path');
       if (pathParam) {
-        actualFilePath = join(process.cwd(), 'uploads', pathParam);
-      } else {
-        // Fallback: try to extract from old format
-        actualFilePath = join(
-          process.cwd(),
-          'uploads',
-          media.filePath.replace(/^\/uploads\//, '')
-        );
+        candidatePaths.push(join(process.cwd(), 'public', 'uploads', pathParam));
+        candidatePaths.push(join(process.cwd(), 'uploads', pathParam));
       }
-    } else {
-      // Old format: /uploads/cars/...
-      actualFilePath = join(
-        process.cwd(),
-        'uploads',
-        media.filePath.replace(/^\/uploads\//, '')
-      );
     }
 
-    if (existsSync(actualFilePath)) {
+    const actualFilePath =
+      candidatePaths.find((candidate) => existsSync(candidate)) || null;
+
+    if (actualFilePath && existsSync(actualFilePath)) {
       const { unlink } = await import('fs/promises');
       await unlink(actualFilePath);
     }
