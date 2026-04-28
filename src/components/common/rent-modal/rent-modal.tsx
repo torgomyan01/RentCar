@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Car } from '@/lib/rentprog-api-server';
 import {
   calculateExtraTimeFee,
@@ -128,6 +128,7 @@ const RentModal = ({
   const [isMobileTimeModalOpen, setIsMobileTimeModalOpen] = useState(false);
   const [mobileTempStartTime, setMobileTempStartTime] = useState('09:00');
   const [mobileTempEndTime, setMobileTempEndTime] = useState('09:00');
+  const [showBookingSuccessPopup, setShowBookingSuccessPopup] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -141,6 +142,7 @@ const RentModal = ({
       setContactPhone('');
       setSubmitStatus(null);
       setIsMobileTimeModalOpen(false);
+      setShowBookingSuccessPopup(false);
     }
   }, [isOpen]);
 
@@ -152,6 +154,11 @@ const RentModal = ({
       setIsClosing(false);
     }
   }, [isOpen]);
+
+  const closeBookingSuccessPopup = useCallback(() => {
+    setShowBookingSuccessPopup(false);
+    onClose();
+  }, [onClose]);
 
   const handleClose = (e?: React.MouseEvent) => {
     if (e) {
@@ -394,11 +401,8 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
         const data = await response.json();
 
         if (response.ok && data.success) {
-          setSubmitStatus({
-            type: 'success',
-            message: 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.',
-          });
-          setTimeout(() => handleClose(e), 1500);
+          setSubmitStatus(null);
+          setShowBookingSuccessPopup(true);
         } else {
           setSubmitStatus({
             type: 'error',
@@ -656,7 +660,7 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
 
         <h2 className="rent-title">
           {contactOnly
-            ? 'ОСТАВИТЬ ЗАЯВКУ'
+            ? 'ЗАЯВКА НА КОНСУЛЬТАЦИЮ'
             : car
               ? 'ЗАЯВКА НА АРЕНДУ АВТОМОБИЛЯ'
               : 'ПЕРИОД АРЕНДЫ АВТОМОБИЛЯ'}
@@ -855,7 +859,11 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               onMouseDown={(e) => {
                 // Ensure mask placeholders are visible on first click
                 setIsPhoneFocused(true);
-                phoneMaskOnFocus(contactPhone, setContactPhone, e.currentTarget);
+                phoneMaskOnFocus(
+                  contactPhone,
+                  setContactPhone,
+                  e.currentTarget
+                );
                 phoneMaskForceCaretToEnd(e.currentTarget);
               }}
               onBlur={() => {
@@ -931,6 +939,50 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
                 : 'Сохранить'}
           </button>
         </div>
+
+        {showBookingSuccessPopup && (
+          <div
+            className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/55 p-4"
+            onClick={closeBookingSuccessPopup}
+          >
+            <div
+              className="w-full max-w-md rounded-[28px] bg-white p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <svg
+                  width="34"
+                  height="34"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M20 6L9 17L4 12"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-[24px] font-semibold leading-tight text-[#222]">
+                Бронь создана
+              </h3>
+              <p className="mt-3 text-[16px] leading-6 text-[#444]">
+                Бронь создана, ожидайте звонка менеджера.
+              </p>
+              <button
+                type="button"
+                className="btn red-btn mt-5 w-full"
+                onClick={closeBookingSuccessPopup}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       {isMobileTimeModalOpen && !contactOnly && (
         <div

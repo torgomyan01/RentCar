@@ -625,6 +625,7 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' });
+  const [showBookingSuccessPopup, setShowBookingSuccessPopup] = useState(false);
   const [activeOptionTooltipId, setActiveOptionTooltipId] = useState<
     string | null
   >(null);
@@ -1383,11 +1384,8 @@ ${pricingInfo}
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setSubmitStatus({
-          type: 'success',
-          message:
-            'Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.',
-        });
+        setSubmitStatus({ type: null, message: '' });
+        setShowBookingSuccessPopup(true);
         // Clear form
         setName('');
         setPhone('');
@@ -1561,6 +1559,10 @@ ${pricingInfo}
     mq.addEventListener('change', onChange);
     onChange();
     return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const closeBookingSuccessPopup = useCallback(() => {
+    setShowBookingSuccessPopup(false);
   }, []);
 
   useEffect(() => {
@@ -2612,6 +2614,50 @@ ${pricingInfo}
             <div className="absolute top-0 right-0 w-20 h-20 border-t-4 border-r-4 border-red-600 opacity-50"></div>
             <div className="absolute bottom-0 left-0 w-20 h-20 border-b-4 border-l-4 border-red-600 opacity-50"></div>
             <div className="absolute bottom-0 right-0 w-20 h-20 border-b-4 border-r-4 border-red-600 opacity-50"></div>
+          </div>
+        </div>
+      )}
+
+      {showBookingSuccessPopup && (
+        <div
+          className="fixed inset-0 z-[3200] flex items-center justify-center bg-black/55 p-4"
+          onClick={closeBookingSuccessPopup}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] bg-white p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M20 6L9 17L4 12"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <h3 className="text-[24px] font-semibold leading-tight text-[#222]">
+              Бронь создана
+            </h3>
+            <p className="mt-3 text-[16px] leading-6 text-[#444]">
+              Бронь создана, ожидайте звонка менеджера.
+            </p>
+            <button
+              type="button"
+              className="red-btn mt-5 w-full"
+              onClick={closeBookingSuccessPopup}
+            >
+              Закрыть
+            </button>
           </div>
         </div>
       )}
