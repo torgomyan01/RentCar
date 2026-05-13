@@ -2182,13 +2182,27 @@ a {
   }
 
   .day {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
     padding: 10px 0;
+    margin: 0;
     border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     animation: dayFadeIn 0.25s ease-out both;
     position: relative;
     overflow: hidden;
+    // Reliable taps on iOS Safari: kill the 300ms delay and tap-flash,
+    // otherwise muted cells (e.g. June 1-3 displayed at the end of May)
+    // sometimes silently swallow the first tap.
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
 
     &::before {
       content: '';
@@ -2205,15 +2219,20 @@ a {
         height 0.25s ease;
     }
 
-    &:hover {
-      transform: scale(1.05);
-      background: rgba(238, 19, 42, 0.08);
-      color: #ee132a;
-      font-weight: 500;
+    // Only apply hover styles on devices that actually support hover.
+    // On iOS Safari the first tap activates :hover and the click handler
+    // is skipped — the user then thinks the cell is "broken".
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        transform: scale(1.05);
+        background: rgba(238, 19, 42, 0.08);
+        color: #ee132a;
+        font-weight: 500;
 
-      &::before {
-        width: 100%;
-        height: 100%;
+        &::before {
+          width: 100%;
+          height: 100%;
+        }
       }
     }
 
@@ -2239,10 +2258,12 @@ a {
     animation: dayPulse 0.3s ease-out;
     box-shadow: 0 1px 4px rgba(238, 19, 42, 0.2);
 
-    &:hover {
-      background: #d01025;
-      transform: scale(1.06);
-      box-shadow: 0 2px 6px rgba(238, 19, 42, 0.25);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background: #d01025;
+        transform: scale(1.06);
+        box-shadow: 0 2px 6px rgba(238, 19, 42, 0.25);
+      }
     }
 
     &::before {
@@ -2254,16 +2275,26 @@ a {
     animation: daySelect 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  // Muted cells still belong to the adjacent month, but they are clickable
+  // (clicking switches to that month). Use a normal pointer so iOS Safari
+  // doesn't treat them as inert.
   .day.muted {
     color: #ccc;
     opacity: 0.5;
-    cursor: not-allowed;
+    cursor: pointer;
 
-    &:hover {
-      transform: scale(1);
-      background: transparent;
-      color: #ccc;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        transform: scale(1);
+        background: transparent;
+        color: #ccc;
+      }
     }
+  }
+
+  .day.disabled,
+  .day:disabled {
+    cursor: not-allowed;
   }
 
   @keyframes fadeInUp {

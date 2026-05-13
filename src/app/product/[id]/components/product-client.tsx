@@ -37,13 +37,7 @@ import {
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
-import {
-  getPhoneDigits,
-  phoneMaskOnBlur,
-  phoneMaskForceCaretToEnd,
-  phoneMaskOnFocus,
-  phoneMaskOnKeyDown,
-} from '@/lib/phone-mask';
+import { getPhoneDigits, phoneMaskOnBlur } from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
 
 type SeasonLike = {
@@ -619,7 +613,6 @@ export default function ProductClient({ car, allCars }: ProductClientProps) {
   const [imageModalIndex, setImageModalIndex] = useState(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error' | null;
@@ -2204,26 +2197,12 @@ ${pricingInfo}
                 <InputMask
                   mask="+7 ___-___-__-__"
                   replacement={{ _: /\d/ }}
-                  showMask={true}
+                  showMask
                   type="tel"
                   placeholder="+7 ___-___-__-__"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  onKeyDown={(e) => phoneMaskOnKeyDown(e, phone, setPhone)}
-                  onMouseDown={(e) => {
-                    // Ensure mask placeholders are visible on first click
-                    setIsPhoneFocused(true);
-                    phoneMaskOnFocus(phone, setPhone, e.currentTarget);
-                    phoneMaskForceCaretToEnd(e.currentTarget);
-                  }}
-                  onBlur={() => {
-                    setIsPhoneFocused(false);
-                    phoneMaskOnBlur(phone, setPhone);
-                  }}
-                  onFocus={(e) => {
-                    setIsPhoneFocused(true);
-                    phoneMaskOnFocus(phone, setPhone, e.currentTarget);
-                  }}
+                  onBlur={() => phoneMaskOnBlur(phone, setPhone)}
                   inputMode="tel"
                   disabled={isSubmitting}
                 />

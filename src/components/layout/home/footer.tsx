@@ -4,13 +4,7 @@ import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { InputMask } from '@react-input/mask';
-import {
-  getPhoneDigits,
-  phoneMaskOnBlur,
-  phoneMaskForceCaretToEnd,
-  phoneMaskOnFocus,
-  phoneMaskOnKeyDown,
-} from '@/lib/phone-mask';
+import { getPhoneDigits, phoneMaskOnBlur } from '@/lib/phone-mask';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -22,7 +16,6 @@ function Footer({ minHeight = false }: FooterProps) {
     phone: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: 'success' | 'error' | null;
     message: string;
@@ -111,41 +104,17 @@ function Footer({ minHeight = false }: FooterProps) {
             <InputMask
               mask="+7 ___-___-__-__"
               replacement={{ _: /\d/ }}
-              showMask={true}
+              showMask
               type="tel"
               name="phone"
               placeholder="+7 ___-___-__-__"
               value={formData.phone}
               onChange={handleChange}
-              onKeyDown={(e) =>
-                phoneMaskOnKeyDown(e, formData.phone, (value) =>
+              onBlur={() =>
+                phoneMaskOnBlur(formData.phone, (value) =>
                   setFormData((prev) => ({ ...prev, phone: value }))
                 )
               }
-              onMouseDown={(e) => {
-                // Ensure mask placeholders are visible on first click
-                setIsPhoneFocused(true);
-                phoneMaskOnFocus(
-                  formData.phone,
-                  (value) => setFormData((prev) => ({ ...prev, phone: value })),
-                  e.currentTarget
-                );
-                phoneMaskForceCaretToEnd(e.currentTarget);
-              }}
-              onBlur={() => {
-                setIsPhoneFocused(false);
-                phoneMaskOnBlur(formData.phone, (value) =>
-                  setFormData((prev) => ({ ...prev, phone: value }))
-                );
-              }}
-              onFocus={(e) => {
-                setIsPhoneFocused(true);
-                phoneMaskOnFocus(
-                  formData.phone,
-                  (value) => setFormData((prev) => ({ ...prev, phone: value })),
-                  e.currentTarget
-                );
-              }}
               inputMode="tel"
               required
             />

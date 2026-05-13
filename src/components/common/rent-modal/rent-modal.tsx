@@ -8,13 +8,7 @@ import {
 } from '@/lib/business-hours-fee';
 import { InputMask } from '@react-input/mask';
 import Slider from '@mui/material/Slider';
-import {
-  getPhoneDigits,
-  phoneMaskOnBlur,
-  phoneMaskForceCaretToEnd,
-  phoneMaskOnFocus,
-  phoneMaskOnKeyDown,
-} from '@/lib/phone-mask';
+import { getPhoneDigits, phoneMaskOnBlur } from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -124,7 +118,6 @@ const RentModal = ({
     message: string;
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [isMobileTimeModalOpen, setIsMobileTimeModalOpen] = useState(false);
   const [mobileTempStartTime, setMobileTempStartTime] = useState('09:00');
   const [mobileTempEndTime, setMobileTempEndTime] = useState('09:00');
@@ -741,19 +734,21 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
                   }
 
                   return (
-                    <span
+                    <button
                       key={idx}
+                      type="button"
                       className={`day ${isMuted ? 'muted' : ''} ${
                         isDisabled ? 'disabled' : ''
                       } ${isSelected || isInRange ? 'active' : ''} ${
                         isSelected ? 'selected' : ''
                       }`}
                       onClick={() => handleDateClick(day)}
+                      disabled={isDisabled}
+                      aria-label={day.toLocaleDateString('ru-RU')}
                       style={{
                         animationDelay: `${idx * 0.01}s`,
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         opacity: isDisabled ? 0.5 : 1,
-                        pointerEvents: isDisabled ? 'none' : 'auto',
                         backgroundColor,
                         color,
                         textDecoration: isDisabled ? 'line-through' : 'none',
@@ -761,7 +756,7 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
                       }}
                     >
                       {day.getDate()}
-                    </span>
+                    </button>
                   );
                 })}
               </div>
@@ -847,39 +842,13 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
             <InputMask
               mask="+7 ___-___-__-__"
               replacement={{ _: /\d/ }}
-              showMask={true}
+              showMask
               type="tel"
               name="phone"
               placeholder="+7 ___-___-__-__"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
-              onKeyDown={(e) =>
-                phoneMaskOnKeyDown(e, contactPhone, setContactPhone)
-              }
-              onMouseDown={(e) => {
-                // Ensure mask placeholders are visible on first click
-                setIsPhoneFocused(true);
-                phoneMaskOnFocus(
-                  contactPhone,
-                  setContactPhone,
-                  e.currentTarget
-                );
-                phoneMaskForceCaretToEnd(e.currentTarget);
-              }}
-              onBlur={() => {
-                setIsPhoneFocused(false);
-                phoneMaskOnBlur(contactPhone, setContactPhone);
-              }}
-              onFocus={(e) =>
-                (() => {
-                  setIsPhoneFocused(true);
-                  phoneMaskOnFocus(
-                    contactPhone,
-                    setContactPhone,
-                    e.currentTarget
-                  );
-                })()
-              }
+              onBlur={() => phoneMaskOnBlur(contactPhone, setContactPhone)}
               inputMode="tel"
               disabled={isSubmitting}
             />
