@@ -13,6 +13,34 @@
 //   - `phoneMaskOnBlur`: when the user leaves the field without typing any
 //     real digit, clear the value so the placeholder shows up again instead
 //     of a half-empty mask like "+7 ___-___-__-__".
+//   - `normalizePhoneInputValue`: blocks 7/8 as the first digit after +7.
+
+const BAD_AFTER_PLUS7 = /^\+7\s*[78]/;
+
+/**
+ * After `+7`, the first subscriber digit must not be `7` or `8`.
+ * Strips mistaken `+7 8…` / `+7 7…` while typing.
+ */
+export function normalizePhoneInputValue(value: string): string {
+  if (!value || !BAD_AFTER_PLUS7.test(value)) {
+    return value;
+  }
+
+  let next = value;
+  let prev: string;
+
+  do {
+    prev = next;
+    if (/^\+7\s*8/.test(next)) {
+      next = next.replace(/^\+7\s*8\s*/, '+7 ');
+    }
+    if (/^\+7\s*7/.test(next)) {
+      next = next.replace(/^\+7\s*7/, '+7 ');
+    }
+  } while (prev !== next);
+
+  return next;
+}
 
 export function getPhoneDigits(masked: string): string {
   return String(masked || '').replace(/\D/g, '');

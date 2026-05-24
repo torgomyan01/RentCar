@@ -4,7 +4,11 @@ import clsx from 'clsx';
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { InputMask } from '@react-input/mask';
-import { getPhoneDigits, phoneMaskOnBlur } from '@/lib/phone-mask';
+import {
+  getPhoneDigits,
+  normalizePhoneInputValue,
+  phoneMaskOnBlur,
+} from '@/lib/phone-mask';
 
 interface FooterProps {
   minHeight?: boolean;
@@ -75,7 +79,7 @@ function Footer({ minHeight = false }: FooterProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'phone' ? normalizePhoneInputValue(value) : value,
     }));
   };
 

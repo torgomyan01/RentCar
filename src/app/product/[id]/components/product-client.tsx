@@ -37,7 +37,11 @@ import {
   getIncludedMileageLimit,
   parseMileageInput,
 } from '@/lib/mileage-pricing';
-import { getPhoneDigits, phoneMaskOnBlur } from '@/lib/phone-mask';
+import {
+  getPhoneDigits,
+  normalizePhoneInputValue,
+  phoneMaskOnBlur,
+} from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
 
 type SeasonLike = {
@@ -2201,7 +2205,9 @@ ${pricingInfo}
                   type="tel"
                   placeholder="+7 ___-___-__-__"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) =>
+                    setPhone(normalizePhoneInputValue(e.target.value))
+                  }
                   onBlur={() => phoneMaskOnBlur(phone, setPhone)}
                   inputMode="tel"
                   disabled={isSubmitting}

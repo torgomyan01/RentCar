@@ -8,7 +8,11 @@ import {
 } from '@/lib/business-hours-fee';
 import { InputMask } from '@react-input/mask';
 import Slider from '@mui/material/Slider';
-import { getPhoneDigits, phoneMaskOnBlur } from '@/lib/phone-mask';
+import {
+  getPhoneDigits,
+  normalizePhoneInputValue,
+  phoneMaskOnBlur,
+} from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
 const TIME_RANGE_MAX_MINUTES = 23 * 60; // 23:00
@@ -203,6 +207,11 @@ const RentModal = ({
   const handleDateClick = (date: Date) => {
     if (isDateDisabled(date)) return;
 
+    // Tapping a grey day from the previous/next month — switch month first.
+    if (isDateMuted(date)) {
+      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    }
+
     if (!startDate || (startDate && endDate)) {
       // Start new selection
       setStartDate(date);
@@ -216,11 +225,6 @@ const RentModal = ({
       } else {
         setEndDate(date);
       }
-    }
-
-    // If user selected a day from adjacent month, switch visible month too.
-    if (isDateMuted(date)) {
-      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     }
   };
 
@@ -745,8 +749,12 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
                       onClick={() => handleDateClick(day)}
                       disabled={isDisabled}
                       aria-label={day.toLocaleDateString('ru-RU')}
+                      title={
+                        isMuted && !isDisabled
+                          ? 'Другой месяц — нажмите, чтобы выбрать'
+                          : undefined
+                      }
                       style={{
-                        animationDelay: `${idx * 0.01}s`,
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         opacity: isDisabled ? 0.5 : 1,
                         backgroundColor,
@@ -847,7 +855,9 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               name="phone"
               placeholder="+7 ___-___-__-__"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) =>
+                setContactPhone(normalizePhoneInputValue(e.target.value))
+              }
               onBlur={() => phoneMaskOnBlur(contactPhone, setContactPhone)}
               inputMode="tel"
               disabled={isSubmitting}

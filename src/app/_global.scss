@@ -2148,11 +2148,9 @@ a {
 
   @keyframes dayFadeIn {
     from {
-      opacity: 0;
-      transform: scale(0.9) translateY(5px);
+      transform: scale(0.96) translateY(2px);
     }
     to {
-      opacity: 1;
       transform: scale(1) translateY(0);
     }
   }
@@ -2193,7 +2191,8 @@ a {
     border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: dayFadeIn 0.25s ease-out both;
+    // No opacity in keyframes: cells stay clickable immediately on iOS.
+    animation: dayFadeIn 0.2s ease-out forwards;
     position: relative;
     overflow: hidden;
     // Reliable taps on iOS Safari: kill the 300ms delay and tap-flash,

@@ -50,31 +50,21 @@ export const RentModalProvider = ({ children }: { children: ReactNode }) => {
   const scrollYRef = useRef(0);
 
   useEffect(() => {
-    if (isOpen) {
-      scrollYRef.current = window.scrollY || window.pageYOffset || 0;
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollYRef.current}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.width = '100%';
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.width = '';
-      window.scrollTo(0, scrollYRef.current);
-    }
+    if (!isOpen) return;
+
+    scrollYRef.current = window.scrollY || window.pageYOffset || 0;
+    const { style } = document.body;
+    const prevOverflow = style.overflow;
+    const prevTouchAction = style.touchAction;
+
+    // Avoid position:fixed on body — it breaks tap targets in iOS Safari modals.
+    style.overflow = 'hidden';
+    style.touchAction = 'none';
 
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.width = '';
+      style.overflow = prevOverflow;
+      style.touchAction = prevTouchAction;
+      window.scrollTo(0, scrollYRef.current);
     };
   }, [isOpen]);
 
