@@ -39,8 +39,9 @@ import {
 } from '@/lib/mileage-pricing';
 import {
   getPhoneDigits,
-  normalizePhoneInputValue,
+  handlePhoneInputChange,
   phoneMaskOnBlur,
+  phoneMaskOnKeyDown,
 } from '@/lib/phone-mask';
 import { InputMask } from '@react-input/mask';
 
@@ -2205,9 +2206,8 @@ ${pricingInfo}
                   type="tel"
                   placeholder="+7 ___-___-__-__"
                   value={phone}
-                  onChange={(e) =>
-                    setPhone(normalizePhoneInputValue(e.target.value))
-                  }
+                  onChange={(e) => handlePhoneInputChange(e, setPhone)}
+                  onKeyDown={phoneMaskOnKeyDown}
                   onBlur={() => phoneMaskOnBlur(phone, setPhone)}
                   inputMode="tel"
                   disabled={isSubmitting}

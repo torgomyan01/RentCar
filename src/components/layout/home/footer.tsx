@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { InputMask } from '@react-input/mask';
 import {
   getPhoneDigits,
-  normalizePhoneInputValue,
+  handlePhoneInputChange,
   phoneMaskOnBlur,
+  phoneMaskOnKeyDown,
 } from '@/lib/phone-mask';
 
 interface FooterProps {
@@ -76,10 +77,17 @@ function Footer({ minHeight = false }: FooterProps) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    if (name === 'phone') {
+      handlePhoneInputChange(e, (phone) =>
+        setFormData((prev) => ({ ...prev, phone }))
+      );
+      return;
+    }
+    const { value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'phone' ? normalizePhoneInputValue(value) : value,
+      [name]: value,
     }));
   };
 
@@ -114,6 +122,7 @@ function Footer({ minHeight = false }: FooterProps) {
               placeholder="+7 ___-___-__-__"
               value={formData.phone}
               onChange={handleChange}
+              onKeyDown={phoneMaskOnKeyDown}
               onBlur={() =>
                 phoneMaskOnBlur(formData.phone, (value) =>
                   setFormData((prev) => ({ ...prev, phone: value }))

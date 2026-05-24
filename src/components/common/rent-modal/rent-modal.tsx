@@ -10,8 +10,9 @@ import { InputMask } from '@react-input/mask';
 import Slider from '@mui/material/Slider';
 import {
   getPhoneDigits,
-  normalizePhoneInputValue,
+  handlePhoneInputChange,
   phoneMaskOnBlur,
+  phoneMaskOnKeyDown,
 } from '@/lib/phone-mask';
 
 const TIME_RANGE_MINUTES = 6 * 60; // 06:00
@@ -855,9 +856,8 @@ ${car.color ? `*Цвет:* ${car.color}` : ''}
               name="phone"
               placeholder="+7 ___-___-__-__"
               value={contactPhone}
-              onChange={(e) =>
-                setContactPhone(normalizePhoneInputValue(e.target.value))
-              }
+              onChange={(e) => handlePhoneInputChange(e, setContactPhone)}
+              onKeyDown={phoneMaskOnKeyDown}
               onBlur={() => phoneMaskOnBlur(contactPhone, setContactPhone)}
               inputMode="tel"
               disabled={isSubmitting}
