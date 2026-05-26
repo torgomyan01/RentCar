@@ -41,15 +41,17 @@ export async function POST(request: NextRequest) {
 
     if (chatIds.length > 0) {
       const messageText = String(message || '').trim();
-      const fallbackText = `
-🆕 *Новая заявка*
+      const nameTrim = String(name).trim();
+      const phoneTrim = String(phone).trim();
+      const contactBlock = `👤 *Имя:* ${nameTrim}\n📞 *Телефон:* ${phoneTrim}`;
+      const messageHasContactFields = /Имя\s*:/i.test(messageText) &&
+        /Телефон\s*:/i.test(messageText);
 
-👤 *Имя:* ${String(name).trim()}
-📞 *Телефон:* ${String(phone).trim()}
-${messageText ? `💬 *Сообщение:* ${messageText}` : ''}
-      `.trim();
-
-      const textToSend = messageText || fallbackText;
+      const textToSend = messageHasContactFields
+        ? messageText
+        : messageText
+          ? `🆕 *Новая заявка*\n\n${contactBlock}\n💬 *Сообщение:* ${messageText}`
+          : `🆕 *Новая заявка*\n\n${contactBlock}`;
 
       try {
         const relayResponse = await fetch(relayUrl, {

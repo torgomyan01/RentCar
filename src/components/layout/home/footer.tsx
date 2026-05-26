@@ -28,7 +28,17 @@ function Footer({ minHeight = false }: FooterProps) {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const phoneDigits = getPhoneDigits(formData.phone);
+    const name = formData.name.trim();
+    const phone = formData.phone.trim();
+    const phoneDigits = getPhoneDigits(phone);
+
+    if (!name) {
+      setSubmitStatus({
+        type: 'error',
+        message: 'Пожалуйста, введите ваше имя',
+      });
+      return;
+    }
     if (!phoneDigits) {
       setSubmitStatus({
         type: 'error',
@@ -36,8 +46,17 @@ function Footer({ minHeight = false }: FooterProps) {
       });
       return;
     }
+
     setIsSubmitting(true);
     setSubmitStatus({ type: null, message: '' });
+
+    const message = `
+📋 *Заявка с главной страницы*
+
+👤 *Клиент:*
+• Имя: ${name}
+• Телефон: ${phone}
+    `.trim();
 
     try {
       const response = await fetch('/api/telegram/send-message', {
@@ -45,11 +64,7 @@ function Footer({ minHeight = false }: FooterProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          phone: formData.phone,
-          message: 'Заявка с главной страницы',
-        }),
+        body: JSON.stringify({ name, phone, message }),
       });
 
       const data = await response.json();
@@ -76,19 +91,14 @@ function Footer({ minHeight = false }: FooterProps) {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name } = e.target;
-    if (name === 'phone') {
-      handlePhoneInputChange(e, (phone) =>
-        setFormData((prev) => ({ ...prev, phone }))
-      );
-      return;
-    }
-    const { value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, name: e.target.value }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handlePhoneInputChange(e, (phone) =>
+      setFormData((prev) => ({ ...prev, phone }))
+    );
   };
 
   return (
@@ -110,7 +120,8 @@ function Footer({ minHeight = false }: FooterProps) {
               name="name"
               placeholder="Введите ваше имя"
               value={formData.name}
-              onChange={handleChange}
+              onChange={handleNameChange}
+              disabled={isSubmitting}
               required
             />
             <InputMask
@@ -121,7 +132,7 @@ function Footer({ minHeight = false }: FooterProps) {
               name="phone"
               placeholder="+7 ___-___-__-__"
               value={formData.phone}
-              onChange={handleChange}
+              onChange={handlePhoneChange}
               onKeyDown={phoneMaskOnKeyDown}
               onBlur={() =>
                 phoneMaskOnBlur(formData.phone, (value) =>
@@ -129,6 +140,7 @@ function Footer({ minHeight = false }: FooterProps) {
                 )
               }
               inputMode="tel"
+              disabled={isSubmitting}
               required
             />
             <button type="submit" className="red-btn" disabled={isSubmitting}>
